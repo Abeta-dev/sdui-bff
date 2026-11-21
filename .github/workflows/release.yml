@@ -107,7 +107,7 @@ jobs:
             cp LICENSE README.md .env.example "${STAGE_DIR}/"
             ARCHIVE_BASE="sdui-bff_${VERSION}_${GOOS}_${GOARCH}"
             if [ "${GOOS}" = "windows" ]; then
-              (cd "${STAGE_DIR}" && zip -q "../${ARCHIVE_BASE}.zip" .)
+              (cd "${STAGE_DIR}" && zip -qr "../${ARCHIVE_BASE}.zip" .)
             else
               tar -C "${STAGE_DIR}" -czf "dist/${ARCHIVE_BASE}.tar.gz" .
             fi
