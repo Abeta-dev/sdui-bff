@@ -13,6 +13,7 @@ import (
 
 	"github.com/abeta-dev/go-libs/ginmw"
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/snippets"
+	sduibff "github.com/abeta-dev/sdui-bff"
 	"github.com/abeta-dev/sdui-bff/internal/domain"
 	"github.com/abeta-dev/sdui-bff/internal/handler"
 	"github.com/abeta-dev/sdui-bff/internal/infra/layoutclient"
@@ -124,6 +125,8 @@ func TestOpsAndDocsEndpoints(t *testing.T) {
 		}
 		paths, _ := spec["paths"].(map[string]any)
 		for _, p := range []string{
+			"/llms.txt",
+			"/llms-full.txt",
 			"/api/v1/apps",
 			"/api/v1/screens",
 			"/api/v1/screens/{screenId}",
@@ -148,6 +151,36 @@ func TestOpsAndDocsEndpoints(t *testing.T) {
 		if !strings.Contains(wDocs.Body.String(), `data-url="/openapi.json"`) ||
 			!strings.Contains(wDocs.Body.String(), "@scalar/api-reference") {
 			t.Fatalf("docs HTML missing Scalar reference: %s", wDocs.Body.String())
+		}
+	})
+
+	t.Run("llms.txt and llms-full.txt plain-text endpoints", func(t *testing.T) {
+		wIndex := doJSONRequest(router, http.MethodGet, "/llms.txt", "", nil)
+		if wIndex.Code != http.StatusOK {
+			t.Fatalf("GET /llms.txt status = %d, want 200", wIndex.Code)
+		}
+		if ct := wIndex.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/plain") {
+			t.Fatalf("GET /llms.txt Content-Type = %q, want text/plain", ct)
+		}
+		if !bytes.Equal(wIndex.Body.Bytes(), sduibff.LLMsTxt) {
+			t.Fatal("GET /llms.txt body does not match embedded sduibff.LLMsTxt")
+		}
+		if !strings.Contains(wIndex.Body.String(), "# Abeta SDUI Domain BFF") {
+			t.Fatalf("GET /llms.txt missing title header")
+		}
+
+		wFull := doJSONRequest(router, http.MethodGet, "/llms-full.txt", "", nil)
+		if wFull.Code != http.StatusOK {
+			t.Fatalf("GET /llms-full.txt status = %d, want 200", wFull.Code)
+		}
+		if ct := wFull.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/plain") {
+			t.Fatalf("GET /llms-full.txt Content-Type = %q, want text/plain", ct)
+		}
+		if !bytes.Equal(wFull.Body.Bytes(), sduibff.LLMsFullTxt) {
+			t.Fatal("GET /llms-full.txt body does not match embedded sduibff.LLMsFullTxt")
+		}
+		if !strings.Contains(wFull.Body.String(), "X-SDUI-Source") || !strings.Contains(wFull.Body.String(), "Abeta Fresh") {
+			t.Fatalf("GET /llms-full.txt missing expected architecture/vertical reference")
 		}
 	})
 }

@@ -1,0 +1,264 @@
+# Abeta SDUI Domain BFF — Full LLM Reference
+
+> `github.com/abeta-dev/sdui-bff` (`Abeta-dev/sdui-bff`, Apache-2.0) is a standalone **Go 1.26.0** Clean Architecture Backend-for-Frontend (BFF) powering **6 stateful Super-App verticals** over Server-Driven UI (SDUI) `v1` contracts from `github.com/abeta-dev/kmp/bff@v0.2.0` and `github.com/abeta-dev/go-libs@v0.4.0`. Default port: `:8085`.
+
+Live self-documentation served directly by the binary:
+- `GET /llms.txt` — `text/plain; charset=utf-8` (`llmstxt.org` index, embedded from repository root `llms.txt`)
+- `GET /llms-full.txt` — `text/plain; charset=utf-8` (this complete reference, embedded from `llms-full.txt`)
+- `GET /openapi.json` — OpenAPI 3.1.0 schema with SHA-256 `ETag`
+- `GET /docs` — Interactive Scalar API reference UI
+
+---
+
+## 1. The 3-Repo Abeta SDUI Platform
+
+| Repository | Responsibility | Runtime / Default Port |
+| :--- | :--- | :--- |
+| `Abeta-dev/kmp` | Kotlin Multiplatform + Compose Multiplatform SDUI Client Kit (`v0.2.0` wire contracts: 15 Wire Atoms, 17 SnippetTypes incl. `swipe_deck`/`search_bar`/`chip_group`/`product_card`, 18 ActionTypes; 16 Compose atoms; `:sample-app` 6-in-1 Showcase; `:storybook`; `:watch-companion`) | Android · iOS · macOS · Desktop JVM · WasmJS · watchOS · Wear OS |
+| `Abeta-dev/layout-engine` | Multi-tenant Dynamic SDUI Layout Engine & Visual Layout Studio (`/studio`): rule targeting, UTC scheduling, dynamic slotting, immutable snapshots, rollback, fallback | Go service on `:8090` (SQLite WAL or PostgreSQL 17) |
+| `Abeta-dev/sdui-bff` *(this repo)* | Stateful Multi-Vertical Domain BFF: 6 OCP `VerticalModule` implementations, live search/filtering, mutex-protected state transitions, `follow_up_actions` orchestration, optional Layout Engine hydration | Go 1.26.0 service on `:8085` (zero-dependency standalone or integrated via `LAYOUT_ENGINE_URL`) |
+
+```text
++-----------------------------------+        v1 SDUI JSON (ginmw.Envelope)        +----------------------------------------+
+| Abeta-dev/kmp (:sample-app / SDK) | <=========================================> | Abeta-dev/sdui-bff (:8085)             |
+| --bff-url=http://localhost:8085   |  HTTP/2 & h2c · Brotli/Gzip · SHA-256 ETag  | 6 Stateful Verticals + ActionExecutor  |
++-----------------------------------+                                             +-------------------+--------------------+
+                                                                                                      | Optional (LAYOUT_ENGINE_URL)
+                                                                                                      | GET /api/v1/screens/:slug
+                                                                                                      v
+                                                                                  +----------------------------------------+
+                                                                                  | Abeta-dev/layout-engine (:8090)        |
+                                                                                  | Targeting · Schedules · Visual Studio  |
+                                                                                  +-------------------+--------------------+
+                                                                                                      |
+                                                                                                      v
+                                                                                          PostgreSQL 17 / SQLite WAL
+```
+
+---
+
+## 2. Clean Architecture & Package Layout
+
+Dependencies strictly obey the **Uncle Bob Dependency Rule**, flowing inward toward `internal/domain`:
+
+```text
+cmd/sdui-bff -> internal/handler -> internal/usecase -> internal/domain <- internal/infra & internal/verticals/*
+                                 \-> sduibff (root llms_embed.go, stdlib embed only)
+```
+
+```text
+sdui-bff/
+├── llms.txt                     # llmstxt.org index (single source of truth)
+├── llms-full.txt                # Complete LLM reference (single source of truth)
+├── llms_embed.go                # package sduibff: //go:embed LLMsTxt & LLMsFullTxt
+├── llms_embed_test.go           # Embedded parity & hygiene tests (required for Go 1.26 -cover)
+├── cmd/sdui-bff/                # Entrypoint, env config, OCP vertical registration, HTTP/2 & h2c, graceful shutdown
+├── internal/
+│   ├── domain/                  # Pure models, sentinel errors, ports + arch_test.go purity guard
+│   ├── usecase/                 # DefaultScreenComposer (hydration + fallback) & DefaultActionExecutor
+│   ├── handler/                 # Gin router, middleware (Brotli/Gzip, ETag), OpenAPI 3.1, /llms.txt, vertical routes
+│   ├── infra/layoutclient/      # Optional HTTP client for Abeta-dev/layout-engine
+│   └── verticals/               # 6 OCP VerticalModule implementations:
+│       ├── fresh/               # Abeta Fresh  (abeta-fresh)
+│       ├── bites/               # Abeta Bites  (abeta-bites)
+│       ├── pulse/               # Abeta Pulse  (abeta-pulse)
+│       ├── mart/                # Abeta Mart   (abeta-mart)
+│       ├── spark/               # Abeta Spark  (abeta-spark)
+│       └── trade/               # Abeta Trade  (abeta-trade)
+├── docs/                        # architecture.md, verticals-guide.md, assets/screenshots/
+├── scripts/                     # check_brand_hygiene.sh, verify_all.sh
+├── skills/abeta-sdui-bff/       # SKILL.md domain engineering playbook
+└── agents/                      # bff-engineer.md Code Owner persona
+```
+
+### Automated `internal/domain` Purity Guard (`internal/domain/arch_test.go`)
+`TestDomainCleanArchitectureIsolation` parses every non-test Go source file in `internal/domain` using `go/parser` and fails `go test ./...` if any file imports:
+- `github.com/gin-gonic/gin`
+- `net/http`
+- `github.com/abeta-dev/sdui-bff/internal/handler`
+- `github.com/abeta-dev/sdui-bff/internal/infra`
+- `github.com/abeta-dev/sdui-bff/internal/usecase`
+- `github.com/abeta-dev/sdui-bff/internal/verticals`
+
+### Core Domain Ports (`internal/domain/ports.go`)
+```go
+type VerticalModule interface {
+    Descriptor() AppDescriptor
+    Screens() []ScreenSummary
+    CanHandleScreen(screenID string) bool
+    RenderScreen(ctx context.Context, req ScreenRequest) (snippets.PageResponse, error)
+}
+
+type LayoutEngineClient interface {
+    Enabled() bool
+    FetchScreen(ctx context.Context, tenantID, screenSlug string, req ScreenRequest) (snippets.PageResponse, bool, error)
+    HealthCheck(ctx context.Context) bool
+}
+
+type ScreenComposer interface {
+    ListApps() []AppDescriptor
+    ListScreens() []ScreenSummary
+    GetScreen(ctx context.Context, req ScreenRequest) (snippets.PageResponse, string, error)
+}
+
+type ActionExecutor interface {
+    Execute(ctx context.Context, req ActionExecuteRequest) (ActionResult, error)
+}
+```
+
+### Open/Closed (`OCP`) `VerticalModule` Pattern
+- Every vertical implements `domain.VerticalModule` with a compile-time assertion (`var _ domain.VerticalModule = (*Module)(nil)`).
+- `DefaultScreenComposer` discovers apps, screens, and screen renderers exclusively by iterating registered `VerticalModule` slices—never via monolithic `switch screenID` blocks in `internal/usecase` or `internal/handler`.
+- Every vertical guards mutable in-memory state (orders, bookings, swipe history/matches, RFQs) with `sync.RWMutex` and is verified under `go test -count=1 -race -cover ./...`.
+
+### HTTP Transport, Envelope & Middleware (`internal/handler`)
+- Global middleware order: `ginmw.RequestID()` -> `ginmw.Recovery()` -> `ginmw.SecurityHeaders("abeta-sdui-bff")` -> `ginmw.CORS()` -> `ginmw.LimitBodyDefault()` -> optional `ginmw.RateLimitWithLimiter()` (`RATE_LIMIT_RPS > 0`) -> `CompressionMiddleware()` (Brotli `br` preferred over `gzip`, `Vary: Accept-Encoding`).
+- `ETagMiddleware()` applies to `GET /openapi.json`, `GET /api/v1/apps`, `GET /api/v1/screens`, and `GET /api/v1/screens/:screenId`: computes SHA-256 ETag (`W/` weakened when compressed), sets `Cache-Control: public, max-age=30`, returns `304 Not Modified` on `If-None-Match`.
+- Optional HS256 JWT bearer auth (`JWT_SECRET`) protects `/api/v1/*` via `ginmw.AuthMiddleware()`.
+- Server enables `HTTP/1.1`, unencrypted `h2c`, and TLS `HTTP/2` via Go `http.Server.Protocols`.
+- All `/api/v1/*` JSON responses use `github.com/abeta-dev/go-libs@v0.4.0` `ginmw.Envelope`:
+  - Success: `{"success": true, "data": <payload>}`
+  - Error: structured `ginmw` error envelope mapped from domain sentinels (`ErrScreenNotFound`/`ErrNotFound` -> `404 NOT_FOUND`, `ErrInvalidInput` -> `400 VALIDATION_ERROR`).
+
+---
+
+## 3. Layout Engine Dynamic Mode & KMP Wire Invariants
+
+### Dual-Mode Screen Resolution (`X-SDUI-Source`)
+`DefaultScreenComposer.GetScreen` emits the exact resolution path in the `X-SDUI-Source` HTTP response header:
+
+| `X-SDUI-Source` Value | When It Happens |
+| :--- | :--- |
+| `layout-engine` | `LAYOUT_ENGINE_URL` is configured, no interactive vertical override (`?q=`, `?filter=`, `?id=`) is present, and `GET <LAYOUT_ENGINE_URL>/api/v1/screens/<slug>` returned HTTP `200` with `{"success": true, "data": <PageResponse>}`. Also serves CMS-only custom slugs not registered locally (defaulting tenant to `abeta-fresh` if `X-Tenant-ID` is omitted). |
+| `standalone` | `LAYOUT_ENGINE_URL` is unset (`layoutclient.Client.Enabled() == false`, zero outbound HTTP calls), OR a local vertical screen was requested with dynamic interactive parameters (`?q=`, `?filter=`, or `?id=`). |
+| `standalone-fallback` | `LAYOUT_ENGINE_URL` is configured for a known vertical screen, but Layout Engine returned `404`, non-2xx, `success=false`, timeout (`5s`), or network error—transparently degrading to local `VerticalModule.RenderScreen`. |
+
+### Targeting Headers & Client Safety Bounds (`internal/infra/layoutclient`)
+- Forwarded targeting headers: `X-Tenant-ID` (explicit header or owning vertical's `TenantID`), `X-Platform`, `X-City` (`?city=` query overrides `X-City`), `X-User-Segment`, `X-Window-Class`.
+- Safety bounds: `5s` screen fetch timeout, `1.5s` `/healthz` readiness check timeout, `4 MiB` (`4 << 20`) `io.LimitReader` response body cap.
+
+### Non-Negotiable KMP Wire Invariants (`github.com/abeta-dev/kmp/bff@v0.2.0`)
+1. **Direct v1 Contract Consumption**: Always construct screens and triggers using `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` (`15` Wire Atoms, `17` SnippetTypes, `18` ActionTypes)—never duplicate wire structs.
+2. **String-Only `TrackingContract.properties` Rule**: On `Abeta-dev/kmp`, `TrackingContract.properties` deserializes strictly as `Map<String, String>` under `kotlinx.serialization`. Every analytics/tracking property map emitted by any vertical or action handler MUST contain **string values only** (convert ints/bools via `strconv.Itoa` / `strconv.FormatBool`). `DefaultActionExecutor` enforces this via `stringifyProperties`.
+3. **Structured `follow_up_actions`**: Mutation responses return `domain.ActionResult{Status, Message, FollowUpActions, Data}` where `follow_up_actions` carries typed `actions.ActionTrigger` objects (`trigger_feedback`, `show_toast`, `navigate`, `track_event`) automatically dispatched by KMP's `RemoteApiCallExecutor`.
+
+---
+
+## 4. Complete HTTP API Reference
+
+### Core Ops, Documentation, Discovery & Generic Actions
+- `GET /healthz` — Liveness probe (`status`, `service`, `mode`: `"standalone"` | `"layout-engine"`).
+- `GET /readyz` — Readiness probe (`status`, `service`, `mode`, `layout_engine_enabled`, `layout_engine_connected`).
+- `GET /llms.txt` — Embedded `llmstxt.org` index (`text/plain; charset=utf-8`).
+- `GET /llms-full.txt` — Embedded full LLM reference (`text/plain; charset=utf-8`).
+- `GET /openapi.json` — OpenAPI 3.1.0 specification (ETag-enabled).
+- `GET /docs` — Interactive Scalar API docs UI.
+- `GET /api/v1/apps` — Returns `{"apps": [AppDescriptor...]}` for all 6 registered verticals.
+- `GET /api/v1/screens` — Returns `{"screens": [ScreenSummary...]}` for all 13 discoverable screen routes.
+- `GET /api/v1/screens/:screenId` — Renders a `v1` `PageResponse`.
+  - Query params: `?q=` (search), `?filter=` (category/facet), `?city=` (city override), `?id=` (detail entity ID), `?cursor=` (pagination), plus arbitrary extra params forwarded in `ScreenRequest.Extra`.
+  - Headers: `X-Tenant-ID`, `X-Platform`, `X-City`, `X-User-Segment`, `X-Window-Class`, `If-None-Match`.
+- `POST /api/v1/actions/execute` — Executes generic actions. Accepts either direct `{"action_id","action_type","payload"}` or KMP trigger envelope `{"trigger":{"id","type","payload"}}`. Supports:
+  - `track_event`: stringifies all properties into `data.properties`.
+  - `show_toast`: emits `show_toast` follow-up action.
+  - `navigate`: validates non-empty `payload.route` (400 otherwise) and emits `navigate` follow-up.
+  - `submit_form`: emits `trigger_feedback` (`celebration`) + `show_toast` (`success`) + `track_event` (`form_submitted`).
+  - Any other `action_type`: executes default handler emitting `track_event` (`action_executed`).
+
+---
+
+### The 6 Stateful Super-App Verticals
+
+#### 1. Abeta Fresh — Quick Commerce (`abeta-fresh`, theme `emerald`)
+- **Screens**: `fresh-home`, `store-home` (compatibility alias)
+- **Filters (`?filter=`)**: `all`, `produce`, `dairy`, `bakery`, `snacks`, `drinks`; supports `?q=` search & `?city=` (default `Bengaluru`)
+- **Key Snippets**: `search_bar`, `chip_group`, promo `banner`, responsive `product_card` `grid` with `StepperAtom` selectors, sticky `FloatingCartSpec`, empty state with reset action
+- **Mutations**: `POST /api/v1/fresh/orders/express` and `POST /api/v1/orders/express`
+  - Payload (`ExpressOrderRequest`, optional body): `{"vertical":"abeta-fresh","items":{"sku":2},"item_count":3,"total_usd":14.50,"address":"Indiranagar, Bengaluru","coupon":"...","payment":"...","notes":"..."}` (negative `item_count` or item qty -> `400`)
+  - State & `follow_up_actions`: generates `FRS-xxxx`, increments `orderCount` displayed in banner, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`).
+
+#### 2. Abeta Bites — Food Delivery (`abeta-bites`, theme `amber`)
+- **Screens**: `bites-home`, `bites-restaurant` (`?id=verde-bowl`, etc.), `bites-order-track`
+- **Filters (`?filter=`)**: `all`, `veg` (Pure Veg), `top_rated` (4.0+), `fast` (Under 25m), `biryani`, `pizza`; supports `?q=` & `?city=`
+- **Key Snippets**: `search_bar`, `chip_group`, curated collections `carousel`, restaurant cards, interactive menu `product_card` steppers, floating meal cart, live kitchen/rider progress tracker
+- **Mutation**: `POST /api/v1/bites/orders`
+  - Payload (`ExpressOrderRequest`, optional body): `{"items":{...},"item_count":2,"total_usd":22.00,"address":"Koramangala, Bengaluru"}`
+  - State & `follow_up_actions`: generates `BTS-xxxx`, persists live order progress & rider assignment for `bites-order-track`, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`) + `navigate` (`route: "bites-order-track"`).
+
+#### 3. Abeta Pulse — Events & Ticketing (`abeta-pulse`, theme `indigo`)
+- **Screens**: `pulse-home`, `pulse-event-detail` (`?id=evt-synth-symphony`, etc.)
+- **Filters (`?filter=`)**: `all`, `movies`, `concerts`, `comedy`, `dining`; supports `?q=` & `?city=`
+- **Key Snippets**: `search_bar`, `chip_group`, featured events `carousel`, event cards, venue schedule, seat-tier reservation triggers, native OS `share` action
+- **Mutation**: `POST /api/v1/pulse/bookings`
+  - Payload (`BookingRequest`): `{"event_id":"evt-synth-symphony","event_name":"...","seat_tier":"VIP","quantity":2,"city":"Bengaluru"}` (`tier` alias accepted; `quantity == 0` defaults to `2`; `quantity < 0` -> `400`)
+  - State & `follow_up_actions`: generates `PLS-xxxx`, persists booking record, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`).
+
+#### 4. Abeta Mart — Multi-Category Marketplace (`abeta-mart`, theme `indigo`)
+- **Screens**: `mart-home`, `mart-product-detail` (`?id=mrt_anc_buds`, etc.)
+- **Filters (`?filter=`)**: `all`, `electronics`, `audio`, `home`, `fashion`; supports `?q=` & `?city=`
+- **Key Snippets**: `search_bar`, `chip_group`, lightning deals `carousel`, responsive `product_card` `grid`, technical specs `accordion`, reviews, instant Buy Now & native `share`
+- **Mutation**: `POST /api/v1/mart/orders`
+  - Payload (`ExpressOrderRequest`, optional body): `{"items":{...},"item_count":1,"total_usd":129.00,"address":"HSR Layout, Bengaluru"}`
+  - State & `follow_up_actions`: generates `MRT-xxxx`, tracks marketplace order count, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`).
+
+#### 5. Abeta Spark — Social Discovery (`abeta-spark`, theme `amber`)
+- **Screens**: `spark-deck`, `spark-matches`
+- **Filters (`?filter=`)**: `nearby`, `verified`, `design_tech` (toggling active chip clears filter)
+- **Key Snippets**: `chip_group`, interactive `swipe_deck` (`SwipeDeckSnippetData`), quick actions (`nope`, `super_like`, `like`, `undo`, `reset`), persisted mutual match feed
+- **Mutation**: `POST /api/v1/spark/swipe`
+  - Payload (`SwipeRequest`): `{"profile_id":"spk_aanya","direction":"like"}` (`action` alias accepted; valid directions: `like`, `nope`, `super_like`, `undo`, `reset`; CMS-authored `spark_*` IDs accepted dynamically; unknown ID -> `404`; invalid direction -> `400`)
+  - State & `follow_up_actions`: tracks swiped deck stack & upserts mutual matches (`SPK-xxxx`) visible on `spark-matches`. Mutual `like`/`super_like` emits `trigger_feedback` (`celebration` — *"It's a Match!"*) + `show_toast`; `nope` emits info `show_toast`; `undo` restores last swiped profile + `show_toast`; `reset` clears swiped deck + `show_toast` + `navigate` (`spark-deck`).
+
+#### 6. Abeta Trade — B2B Wholesale & RFQ (`abeta-trade`, theme `emerald`)
+- **Screens**: `trade-home`, `trade-supplier` (`?id=trd_ecopack`, etc.)
+- **Filters (`?filter=`)**: `all`, `verified` (GST Verified), `electronics`, `packaging`, `textiles`; supports `?q=` & `?city=`
+- **Key Snippets**: `search_bar`, `chip_group`, Trade Assurance `banner`, verified supplier cards with MOQ pricing previews, TrustScore metrics, validated `form_v1` RFQ submission form, recent RFQs list
+- **Mutation**: `POST /api/v1/trade/rfq`
+  - Payload (`RFQRequest`): `{"supplier_id":"trd_ecopack","product_name":"Kraft Cartons","quantity":500,"company_name":"Northstar Retail","contact_email":"buyer@northstar.example","delivery_city":"Bengaluru","notes":"..."}` (`company` and `email` aliases supported; requires non-empty `company_name`, valid `contact_email` containing `@`, and `quantity > 0` else `400`)
+  - State & `follow_up_actions`: generates `RFQ-xxxx`, persists `domain.RFQRecord` shown on `trade-supplier`, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`).
+
+---
+
+## 5. Configuration, Quickstart & Verification
+
+### Environment Variables
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `PORT` / `HTTP_ADDR` | `8085` / `:<PORT>` | Listen port / explicit bind address |
+| `GIN_MODE` | `release` | Gin runtime mode (`release`, `debug`, `test`) |
+| `LOG_LEVEL` | `info` | JSON slog level (`debug`, `info`, `warn`, `error`) |
+| `LAYOUT_ENGINE_URL` | *(empty)* | Optional `Abeta-dev/layout-engine` base URL (e.g., `http://localhost:8090`) |
+| `JWT_SECRET` | *(empty)* | Optional HS256 secret enabling bearer JWT auth on `/api/v1/*` |
+| `RATE_LIMIT_RPS` | `0` | Optional global token-bucket rate limit (`0` disables throttling) |
+| `CORS_ALLOWED_ORIGINS` | `*` | Comma-separated allowed CORS origins |
+| `HTTP_READ_TIMEOUT` / `HTTP_WRITE_TIMEOUT` / `HTTP_IDLE_TIMEOUT` / `SHUTDOWN_TIMEOUT` | `10s` / `15s` / `60s` / `10s` | HTTP server & graceful shutdown timeouts |
+
+### Quickstart Commands
+
+```bash
+# 1. Standalone mode (Go 1.26.0 only — zero Docker/DB dependencies, serves :8085)
+go run ./cmd/sdui-bff
+curl http://localhost:8085/llms.txt
+curl http://localhost:8085/api/v1/apps
+curl "http://localhost:8085/api/v1/screens/fresh-home?city=Bengaluru"
+
+# 2. 3-Tier local integrated mode (with Abeta-dev/layout-engine running on :8090)
+LAYOUT_ENGINE_URL=http://localhost:8090 go run ./cmd/sdui-bff
+# or: make run-with-layout-engine
+
+# 3. Full 3-service Docker Compose stack (PostgreSQL 17 + Layout Engine :8090 + SDUI BFF :8085)
+docker compose up --build
+# OpenAPI/Scalar docs: http://localhost:8085/docs | Visual Layout Studio: http://localhost:8090/studio
+
+# 4. Connect Abeta-dev/kmp Compose Multiplatform 6-in-1 Showcase Client
+(cd ../kmp/kmp && ./gradlew :sample-app:run --args="--bff-url=http://localhost:8085")
+(cd ../kmp/kmp && ./gradlew :sample-app:run --args="--headless --bff-url=http://localhost:8085")
+
+# 5. Full verification gate (brand/path hygiene, gofmt, go vet, -race -cover tests, static CGO_ENABLED=0 build)
+./scripts/verify_all.sh
+```
+
+### Verification & Hygiene Rules for Coding Agents
+- Never introduce third-party competitor brand names or machine-specific filesystem paths anywhere (enforced by `./scripts/check_brand_hygiene.sh`).
+- Keep Go 1.26 `-cover` clean: every Go package containing `.go` files MUST include a `_test.go` file.
+- Always run `gofmt -w .` and `./scripts/verify_all.sh` after code edits.

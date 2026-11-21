@@ -1,0 +1,27 @@
+# Abeta SDUI Domain BFF
+
+> Standalone Go 1.26.0 Clean Architecture Server-Driven UI (SDUI) Domain BFF (`github.com/abeta-dev/sdui-bff`) powering 6 stateful Super-App verticals (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`) over typed `v1` contracts from `github.com/abeta-dev/kmp/bff@v0.2.0` and `github.com/abeta-dev/go-libs@v0.4.0`, with optional `Abeta-dev/layout-engine` dynamic CMS hydration and zero-dependency standalone fallback.
+
+`Abeta-dev/sdui-bff` serves stateful domain catalogs, live search and category filtering, mutex-protected vertical mutations returning structured `follow_up_actions` (`trigger_feedback`, `show_toast`, `navigate`), HTTP/2 + `h2c` transport, Brotli/gzip compression, SHA-256 `ETag` (`304 Not Modified`), OpenAPI 3.1 (`/openapi.json`, `/docs`), and live plain-text AI documentation (`/llms.txt`, `/llms-full.txt`) on default port `:8085`.
+
+## Core Documentation
+
+- [README](https://raw.githubusercontent.com/Abeta-dev/sdui-bff/main/README.md): Project overview, 3-repo Abeta SDUI Platform map, 6-vertical showcase gallery, standalone/integrated/Docker quickstarts, and environment configuration.
+- [Architecture Guide](https://raw.githubusercontent.com/Abeta-dev/sdui-bff/main/docs/architecture.md): Uncle Bob Clean Architecture boundaries, automated `internal/domain/arch_test.go` purity guard, Open/Closed `VerticalModule` ports, Layout Engine hydration flow, KMP string-only tracking invariant, and transport/security controls.
+- [Verticals Guide](https://raw.githubusercontent.com/Abeta-dev/sdui-bff/main/docs/verticals-guide.md): Reference for all 6 stateful vertical apps (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`), screen routes, mutation payloads, `follow_up_actions`, and recipe for adding new verticals.
+- [Full LLM Reference](https://raw.githubusercontent.com/Abeta-dev/sdui-bff/main/llms-full.txt): Single-file technical reference covering 3-repo architecture, Clean Architecture ports, Layout Engine dynamic mode, complete 6-vertical API reference, and quickstart commands.
+
+## AI Agent Contracts & Engineering Playbooks
+
+- [AGENTS.md](https://raw.githubusercontent.com/Abeta-dev/sdui-bff/main/AGENTS.md): Non-negotiable architectural truth gates, KMP wire parity rules, concurrency requirements, brand/path hygiene rules, and verification commands.
+- [SDUI BFF Engineering Skill](https://raw.githubusercontent.com/Abeta-dev/sdui-bff/main/skills/abeta-sdui-bff/SKILL.md): Actionable engineering playbook for developing, testing, and reviewing `abeta-dev/sdui-bff`.
+- [BFF Code Owner Persona](https://raw.githubusercontent.com/Abeta-dev/sdui-bff/main/agents/bff-engineer.md): Module ownership scope, allowed and forbidden dependencies, and PR review checklist.
+
+## Deployment & Local Stack
+
+- [Docker Compose Stack](https://raw.githubusercontent.com/Abeta-dev/sdui-bff/main/docker-compose.yaml): 3-service local stack wiring PostgreSQL 17, `Abeta-dev/layout-engine` (`:8090`), and `Abeta-dev/sdui-bff` (`:8085`).
+
+## Abeta SDUI Platform (Sibling Repositories)
+
+- [Abeta KMP Kit](https://raw.githubusercontent.com/Abeta-dev/kmp/main/llms.txt): Kotlin Multiplatform + Compose Multiplatform SDUI Client Kit (`v0.2.0` contracts, 16 Compose atoms, 17 snippet renderers, 18 OCP actions, `:sample-app` 6-in-1 Super-App Showcase, `:storybook`, `:watch-companion`).
+- [Abeta Layout Engine](https://raw.githubusercontent.com/Abeta-dev/layout-engine/main/llms.txt): Multi-tenant Dynamic SDUI Layout Engine & Visual Layout Studio (`:8090`, rule targeting, UTC scheduling, dynamic slotting, immutable snapshots, rollback, fallback).

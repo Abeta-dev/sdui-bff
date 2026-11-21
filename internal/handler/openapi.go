@@ -5,6 +5,7 @@ import (
 	"html"
 	"net/http"
 
+	sduibff "github.com/abeta-dev/sdui-bff"
 	"github.com/gin-gonic/gin"
 )
 
@@ -40,6 +41,14 @@ func registerOpenAPIRoutes(engine *gin.Engine, name string, requireAuth bool) {
 			"default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://cdn.jsdelivr.net https://fonts.scalar.com 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net https://fonts.scalar.com data:; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none';",
 		)
 		c.Data(http.StatusOK, "text/html; charset=utf-8", docsHTML)
+	})
+
+	engine.GET("/llms.txt", func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/plain; charset=utf-8", sduibff.LLMsTxt)
+	})
+
+	engine.GET("/llms-full.txt", func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/plain; charset=utf-8", sduibff.LLMsFullTxt)
 	})
 }
 
@@ -155,7 +164,7 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 		},
 		"tags": []map[string]any{
 			{"name": "Operations", "description": "Liveness and readiness probes"},
-			{"name": "Documentation", "description": "OpenAPI 3.1 spec and Scalar UI"},
+			{"name": "Documentation", "description": "OpenAPI 3.1 spec, Scalar UI, and llmstxt.org AI-agent documentation"},
 			{"name": "Discovery", "description": "Super-App catalog and SDUI screen composition"},
 			{"name": "Actions", "description": "Generic SDUI action execution"},
 			{"name": "Abeta Fresh", "description": "8-minute quick-commerce grocery express checkout"},
@@ -205,6 +214,32 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 						"200": map[string]any{
 							"description": "Scalar HTML documentation",
 							"content":     map[string]any{"text/html": map[string]any{"schema": map[string]any{"type": "string"}}},
+						},
+					},
+				},
+			},
+			"/llms.txt": map[string]any{
+				"get": map[string]any{
+					"summary":     "llmstxt.org AI-agent index",
+					"operationId": "getLLMsTxt",
+					"tags":        []string{"Documentation"},
+					"responses": map[string]any{
+						"200": map[string]any{
+							"description": "Plain-text llmstxt.org Markdown index",
+							"content":     map[string]any{"text/plain": map[string]any{"schema": map[string]any{"type": "string"}}},
+						},
+					},
+				},
+			},
+			"/llms-full.txt": map[string]any{
+				"get": map[string]any{
+					"summary":     "Complete single-file LLM architecture and API reference",
+					"operationId": "getLLMsFullTxt",
+					"tags":        []string{"Documentation"},
+					"responses": map[string]any{
+						"200": map[string]any{
+							"description": "Plain-text full LLM reference",
+							"content":     map[string]any{"text/plain": map[string]any{"schema": map[string]any{"type": "string"}}},
 						},
 					},
 				},
