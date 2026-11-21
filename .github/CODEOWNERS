@@ -1,0 +1,43 @@
+# =============================================================================
+# CODEOWNERS for Abeta-dev/sdui-bff
+# Maps repository layers, vertical modules, DevOps, and docs to platform owners
+# and the dedicated AI persona at agents/bff-engineer.md.
+# =============================================================================
+
+# Default repository fallback -> agents/bff-engineer.md
+* @Abeta-dev/platform-engineers
+
+# --- Core Go Clean Architecture Service ---
+/cmd/                      @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/internal/domain/          @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/internal/usecase/         @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/internal/handler/         @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/internal/infra/           @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/go.mod                    @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/go.sum                    @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+
+# --- Stateful Super-App Verticals (OCP VerticalModule implementations) ---
+/internal/verticals/       @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/internal/verticals/fresh/ @Abeta-dev/platform-engineers  # Abeta Fresh (8-Min Grocery)
+/internal/verticals/bites/ @Abeta-dev/platform-engineers  # Abeta Bites (Food Delivery)
+/internal/verticals/pulse/ @Abeta-dev/platform-engineers  # Abeta Pulse (Events & Movies)
+/internal/verticals/mart/  @Abeta-dev/platform-engineers  # Abeta Mart (Marketplace)
+/internal/verticals/spark/ @Abeta-dev/platform-engineers  # Abeta Spark (Swipe Discovery)
+/internal/verticals/trade/ @Abeta-dev/platform-engineers  # Abeta Trade (B2B Wholesale & RFQ)
+
+# --- Containers, CI/CD, Scripts & Security ---
+/.github/                  @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/scripts/                  @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/Dockerfile                @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/docker-compose.yaml       @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/Makefile                  @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/.gitleaks.toml            @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+
+# --- Documentation, Skills & Agent Instructions ---
+/docs/                     @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/skills/                   @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/agents/                   @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/README.md                 @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/AGENTS.md                 @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/CLAUDE.md                 @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md
+/GEMINI.md                 @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md

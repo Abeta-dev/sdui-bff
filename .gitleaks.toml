@@ -1,0 +1,11 @@
+title = "Abeta SDUI Domain BFF gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Local Docker Compose example PostgreSQL credentials for the companion layout-engine container"
+regexTarget = "match"
+regexes = [
+  '''postgres://layout:layout@(?:postgres|localhost|127\.0\.0\.1):5432/layout_engine(?:_test)?''',
+]

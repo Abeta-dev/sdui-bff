@@ -1,0 +1,41 @@
+# Build artifacts & compiled binaries
+# Always anchor `/sdui-bff` so `cmd/sdui-bff/` is never ignored.
+/sdui-bff
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test & coverage outputs
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Local SQLite database files
+*.db
+*.db-wal
+*.db-shm
+*.sqlite*
+
+# Local environment overrides & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+
+# Editor & OS metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

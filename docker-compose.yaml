@@ -1,0 +1,94 @@
+# =============================================================================
+# Abeta SDUI Platform — 3-Service Production Stack
+#   1. postgres       (PostgreSQL 17 backing Abeta-dev/layout-engine)
+#   2. layout-engine  (Abeta-dev/layout-engine on :8090 + Visual Layout Studio)
+#   3. sdui-bff       (Abeta-dev/sdui-bff on :8085 wired to layout-engine)
+#
+# Quickstart (full 3-service stack):
+#   docker compose up --build
+#
+# Standalone BFF without Docker or PostgreSQL (zero external dependencies):
+#   go run ./cmd/sdui-bff
+#
+# Local BFF connected to a locally running layout-engine on :8090:
+#   LAYOUT_ENGINE_URL=http://localhost:8090 go run ./cmd/sdui-bff
+#
+# Connect the Abeta-dev/kmp Compose Multiplatform sample-app:
+#   (cd ../kmp/kmp && ./gradlew :sample-app:run --args="--bff-url=http://localhost:8085")
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: abeta-platform-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-layout}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-layout}
+      POSTGRES_DB: ${POSTGRES_DB:-layout_engine}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-layout} -d ${POSTGRES_DB:-layout_engine}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  layout-engine:
+    # Uses the published multi-arch GHCR image by default.
+    # To build from a local sibling checkout instead, comment out `image:` and
+    # uncomment the `build:` block below.
+    image: ${LAYOUT_ENGINE_IMAGE:-ghcr.io/abeta-dev/layout-engine:latest}
+    # build:
+    #   context: ../layout-engine
+    #   dockerfile: Dockerfile
+    container_name: abeta-layout-engine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${LAYOUT_ENGINE_PORT:-8090}:8090"
+    environment:
+      SERVICE_NAME: abeta-layout-engine
+      PORT: "8090"
+      GIN_MODE: ${GIN_MODE:-release}
+      DB_DIALECT: postgres
+      DB_DSN: ${DB_DSN:-postgres://layout:layout@postgres:5432/layout_engine?sslmode=disable}
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
+      SEED_STARTER_DATA: ${SEED_STARTER_DATA:-true}
+      DEFAULT_TENANT: ${DEFAULT_TENANT:-abeta-fresh}
+      COMPRESSION_ENABLED: ${COMPRESSION_ENABLED:-true}
+      ETAG_ENABLED: ${ETAG_ENABLED:-true}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8090/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  sdui-bff:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: abeta-sdui-bff
+    restart: unless-stopped
+    depends_on:
+      layout-engine:
+        condition: service_healthy
+    ports:
+      - "${PORT:-8085}:8085"
+    environment:
+      PORT: "8085"
+      GIN_MODE: ${GIN_MODE:-release}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LAYOUT_ENGINE_URL: ${LAYOUT_ENGINE_URL:-http://layout-engine:8090}
+      JWT_SECRET: ${JWT_SECRET:-}
+      RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-0}
+
+volumes:
+  postgres_data:

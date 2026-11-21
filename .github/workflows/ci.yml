@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene-and-secrets:
+    name: Brand Hygiene & Secret Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run brand and machine-path hygiene check
+        run: |
+          chmod +x ./scripts/check_brand_hygiene.sh
+          ./scripts/check_brand_hygiene.sh
+
+      - name: Secret hygiene scan (gitleaks CLI v8.30.1)
+        run: |
+          set -euo pipefail
+          GITLEAKS_VERSION="8.30.1"
+          GITLEAKS_SHA256="551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+          TARBALL="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "${TMP_DIR}"' EXIT
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${TARBALL}" -o "${TMP_DIR}/${TARBALL}"
+          echo "${GITLEAKS_SHA256}  ${TMP_DIR}/${TARBALL}" | sha256sum -c -
+          tar -xzf "${TMP_DIR}/${TARBALL}" -C "${TMP_DIR}" gitleaks
+          "${TMP_DIR}/gitleaks" git --config .gitleaks.toml --redact --verbose .
+
+  test-and-race:
+    name: Go 1.26.x Format, Vet & Race Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go 1.26.x
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: go.sum
+
+      - name: Verify gofmt formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "${unformatted}" ]; then
+            echo "Unformatted Go files detected:"
+            echo "${unformatted}"
+            exit 1
+          fi
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run unit & vertical integration tests with race detector
+        run: |
+          go test -count=1 -race -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | tail -n 1
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage
+          path: coverage.out
+          if-no-files-found: ignore
+
+  build-binary:
+    name: Static Binary Build (CGO_ENABLED=0)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go 1.26.x
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: go.sum
+
+      - name: Build static sdui-bff binary
+        run: CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/abeta-sdui-bff-ci ./cmd/sdui-bff && rm -f /tmp/abeta-sdui-bff-ci
+
+  docker-build:
+    name: Verify Distroless OCI Container Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: abeta-sdui-bff:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
