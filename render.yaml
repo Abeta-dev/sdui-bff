@@ -1,0 +1,19 @@
+# One-click free hosting blueprint for Render (https://render.com)
+# Deploys both Abeta Dynamic Layout Engine (/studio) and Abeta SDUI Domain BFF (6 vertical apps + /docs)
+# on Render's $0/month free tier using embedded SQLite + live 6-tenant seeds.
+services:
+  - type: web
+    name: abeta-sdui-bff
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: GIN_MODE
+        value: release
+      - key: LOG_LEVEL
+        value: info
+      # Optional: set LAYOUT_ENGINE_URL to your deployed abeta-layout-engine HTTPS URL
+      # to enable dynamic CMS-managed layouts with live standalone fallback.
+      - key: LAYOUT_ENGINE_URL
+        sync: false

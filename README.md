@@ -4,6 +4,7 @@
 [![Release](https://github.com/Abeta-dev/sdui-bff/actions/workflows/release.yml/badge.svg)](https://github.com/Abeta-dev/sdui-bff/actions/workflows/release.yml)
 [![Go 1.26.0](https://img.shields.io/badge/Go-1.26.0-00ADD8.svg?logo=go)](https://go.dev/)
 [![llms.txt](https://img.shields.io/badge/AI_Docs-llms.txt-10B981.svg)](llms.txt)
+[![Deploy to Render](https://img.shields.io/badge/Deploy_Free-Render-46E3B7.svg?logo=render&logoColor=black)](https://render.com/deploy?repo=https://github.com/Abeta-dev/sdui-bff)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 **Abeta SDUI Domain BFF** (`github.com/abeta-dev/sdui-bff`) is a standalone **Go 1.26.0** Clean Architecture **Backend-for-Frontend (BFF)** powering **6 stateful Super-App vertical experiences** over Server-Driven UI (SDUI) wire contracts.
