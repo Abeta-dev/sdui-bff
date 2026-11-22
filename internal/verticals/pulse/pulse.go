@@ -299,6 +299,8 @@ func (m *Module) renderHomeScreen(req domain.ScreenRequest) snippets.PageRespons
 			Build()
 	}
 
+	earlyBirdNudge := buildEarlyBirdNudge(city, spotlight)
+
 	toolbarTitle := atoms.NewText("Abeta Pulse", theming.TypographyTitleLarge, theming.ColorTextPrimary)
 	toolbarSub := atoms.NewText(city+" · Live Tickets", theming.TypographyBodySmall, theming.ColorTextSecondary)
 
@@ -316,7 +318,7 @@ func (m *Module) renderHomeScreen(req domain.ScreenRequest) snippets.PageRespons
 			PageID:     screenHome,
 			ShowLoader: true,
 		})).
-		AddSnippets(header, searchBar, buildCategoryChips(filter), banner, eventsSection).
+		AddSnippets(header, searchBar, buildCategoryChips(filter), earlyBirdNudge, banner, eventsSection).
 		WithTracking("page_loaded", map[string]any{
 			"vertical":      verticalID,
 			"page_id":       screenHome,

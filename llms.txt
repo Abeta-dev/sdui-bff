@@ -1,6 +1,6 @@
 # Abeta SDUI Domain BFF
 
-> Standalone Go 1.26.0 Clean Architecture Server-Driven UI (SDUI) Domain BFF (`github.com/abeta-dev/sdui-bff`) powering 6 stateful Super-App verticals (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`) over typed `v1` contracts from `github.com/abeta-dev/kmp/bff@v0.2.0` and `github.com/abeta-dev/go-libs@v0.4.0`, with optional `Abeta-dev/layout-engine` dynamic CMS hydration and zero-dependency standalone fallback.
+> Standalone Go 1.26.0 Clean Architecture Server-Driven UI (SDUI) Domain BFF (`github.com/abeta-dev/sdui-bff`) powering 6 stateful Super-App verticals (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`) over typed `v1` contracts from `github.com/abeta-dev/kmp/bff@v0.3.0` (**16 Wire Atoms**, **21 canonical SnippetTypes** including Wave 6 `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block` recipes, **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and **Free-Delivery threshold `FloatingCartSpec` docks**) and `github.com/abeta-dev/go-libs@v0.4.0`, with optional `Abeta-dev/layout-engine` dynamic CMS hydration and zero-dependency standalone fallback.
 
 `Abeta-dev/sdui-bff` serves stateful domain catalogs, live search and category filtering, mutex-protected vertical mutations returning structured `follow_up_actions` (`trigger_feedback`, `show_toast`, `navigate`), HTTP/2 + `h2c` transport, Brotli/gzip compression, SHA-256 `ETag` (`304 Not Modified`), OpenAPI 3.1 (`/openapi.json`, `/docs`), and live plain-text AI documentation (`/llms.txt`, `/llms-full.txt`) on default port `:8085`.
 
@@ -23,5 +23,5 @@
 
 ## Abeta SDUI Platform (Sibling Repositories)
 
-- [Abeta KMP Kit](https://raw.githubusercontent.com/Abeta-dev/kmp/main/llms.txt): Kotlin Multiplatform + Compose Multiplatform SDUI Client Kit (`v0.2.0` contracts, 16 Compose atoms, 17 snippet renderers, 18 OCP actions, `:sample-app` 6-in-1 Super-App Showcase, `:storybook`, `:watch-companion`).
+- [Abeta KMP Kit](https://raw.githubusercontent.com/Abeta-dev/kmp/main/llms.txt): Kotlin Multiplatform + Compose Multiplatform SDUI Client Kit (`v0.3.0` contracts, 16 Wire Atoms, 18 Compose atoms, 21 snippet renderers incl. `nudge_bar`/`marquee_strip`/`order_tracker`/`composed_block`, 18 OCP actions, 7 ambient `MotionLoopEffect`s, `:sample-app` 6-in-1 Super-App Showcase, `:storybook` 16 stories, `:watch-companion`).
 - [Abeta Layout Engine](https://raw.githubusercontent.com/Abeta-dev/layout-engine/main/llms.txt): Multi-tenant Dynamic SDUI Layout Engine & Visual Layout Studio (`:8090`, rule targeting, UTC scheduling, dynamic slotting, immutable snapshots, rollback, fallback).

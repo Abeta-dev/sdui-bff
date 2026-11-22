@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/actions"
+	"github.com/abeta-dev/kmp/bff/pkg/sdui/atoms"
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/snippets"
 	"github.com/abeta-dev/sdui-bff/internal/domain"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/spark"
@@ -51,7 +52,7 @@ func TestRenderSwipeDeckAndFilters(t *testing.T) {
 	}
 	assertStringOnlyTrackingProps(t, page)
 
-	var foundHeader, foundChips, foundDeck bool
+	var foundHeader, foundNudge, foundChips, foundDeck bool
 	for _, env := range page.Snippets {
 		switch env.SnippetType {
 		case snippets.SnippetTypeHeader:
@@ -66,6 +67,19 @@ func TestRenderSwipeDeckAndFilters(t *testing.T) {
 			nav, err := actions.DecodePayload[actions.NavigatePayload](*hdr.TrailingAction.OnClick)
 			if err != nil || nav.Route != "spark-matches" {
 				t.Fatalf("expected navigate to spark-matches, got %+v (err=%v)", nav, err)
+			}
+
+		case snippets.SnippetTypeNudgeBar:
+			foundNudge = true
+			nudge, err := snippets.DecodeSnippetData[snippets.NudgeBarSnippetData](env)
+			if err != nil {
+				t.Fatalf("decode spark nudge_bar: %v", err)
+			}
+			if nudge.NudgeID != "spark_prime_boost" || !strings.Contains(nudge.Title.Text, "Prime Boost") {
+				t.Fatalf("unexpected spark nudge_bar: %+v", nudge)
+			}
+			if nudge.Badge == nil || nudge.Badge.Motion == nil || nudge.Badge.Motion.LoopEffect != atoms.MotionLoopHeartbeat {
+				t.Fatalf("expected MotionLoopHeartbeat badge on spark nudge_bar, got %+v", nudge.Badge)
 			}
 
 		case snippets.SnippetTypeChipGroup:
@@ -108,8 +122,8 @@ func TestRenderSwipeDeckAndFilters(t *testing.T) {
 			assertSwipeAction(t, card.OnSuperLike, card.CardID, "super_like")
 		}
 	}
-	if !foundHeader || !foundChips || !foundDeck {
-		t.Fatalf("missing deck snippets: header=%v chips=%v deck=%v", foundHeader, foundChips, foundDeck)
+	if !foundHeader || !foundNudge || !foundChips || !foundDeck {
+		t.Fatalf("missing deck snippets: header=%v nudge=%v chips=%v deck=%v", foundHeader, foundNudge, foundChips, foundDeck)
 	}
 
 	// Verify filter slices.

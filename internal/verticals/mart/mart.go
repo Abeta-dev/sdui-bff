@@ -211,7 +211,9 @@ func (m *Module) renderHome(req domain.ScreenRequest) snippets.PageResponse {
 		WithLayout(cardLayout()).
 		Build()
 
+	marqueeStrip := buildMarqueeStrip()
 	chipGroup := buildCategoryChips(filter, query)
+	flashDealBlock := buildFlashDealComposedBlock(allProducts)
 	carousel := buildLightningCarousel(lightning)
 	catalogSnippet := buildCatalogSection(filtered, filter, query)
 
@@ -226,6 +228,7 @@ func (m *Module) renderHome(req domain.ScreenRequest) snippets.PageResponse {
 	})
 	checkoutCTA := atoms.NewButton("btn_mart_checkout", "Express Checkout", "primary", &checkoutAct)
 	etaBadge := atoms.NewTag("NEXT DAY", theming.ColorInfoContainer)
+	etaBadge.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopFloat}
 
 	toolbarTitle := atoms.NewText("Abeta Mart", theming.TypographyTitleLarge, theming.ColorTextPrimary)
 	toolbarSub := atoms.NewText(fmt.Sprintf("%s · Marketplace", city), theming.TypographyBodySmall, theming.ColorTextSecondary)
@@ -254,11 +257,14 @@ func (m *Module) renderHome(req domain.ScreenRequest) snippets.PageResponse {
 				"result_count": strconv.Itoa(len(filtered)),
 			},
 		})).
-		AddSnippets(header, searchBar, chipGroup, carousel, catalogSnippet).
+		AddSnippets(header, marqueeStrip, searchBar, chipGroup, flashDealBlock, carousel, catalogSnippet).
 		WithFloatingCart(snippets.FloatingCartSpec{
-			Label:    "Mart Cart",
-			EtaBadge: &etaBadge,
-			CTA:      checkoutCTA,
+			Label:                      "Mart Cart",
+			EtaBadge:                   &etaBadge,
+			CTA:                        checkoutCTA,
+			FreeDeliveryThresholdCents: atoms.IntPtr(2500),
+			NudgePrefix:                "Add",
+			UnlockedLabel:              "FREE Next-Day Delivery unlocked!",
 			Motion: &atoms.MotionSpec{
 				Enter:         atoms.MotionTransitionSlideUp,
 				Exit:          atoms.MotionTransitionSlideDown,

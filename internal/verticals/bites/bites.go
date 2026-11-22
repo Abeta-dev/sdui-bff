@@ -240,6 +240,7 @@ func (m *Module) renderHomeScreen(req domain.ScreenRequest) snippets.PageRespons
 
 	listSnippets := []snippets.SnippetEnvelope{
 		headerBuilder.Build(),
+		buildMarqueeStrip(),
 		searchBar,
 		buildFilterChipGroup(filter),
 		buildCollectionsCarousel(),
@@ -365,6 +366,7 @@ func (m *Module) renderRestaurantScreen(req domain.ScreenRequest) snippets.PageR
 	})
 	checkoutBtn := atoms.NewButton("btn_bites_place_order", "Place Order", "primary", &orderAct)
 	etaTag := atoms.NewTag(fmt.Sprintf("%d mins", rest.DeliveryMins), theming.ColorSuccessContainer)
+	etaTag.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopFloat}
 
 	backAct := actions.NewNavigateAction("bites_back_home", actions.NavigatePayload{Route: screenHome})
 	backIcon := atoms.NewIcon("arrow_back", 22, theming.ColorTextPrimary)
@@ -385,9 +387,17 @@ func (m *Module) renderRestaurantScreen(req domain.ScreenRequest) snippets.PageR
 		}).
 		AddSnippets(header, ratingMetric, menuGrid).
 		WithFloatingCart(snippets.FloatingCartSpec{
-			Label:    "Bites Cart · " + rest.Name,
-			EtaBadge: &etaTag,
-			CTA:      checkoutBtn,
+			Label:                      "Bites Cart · " + rest.Name,
+			EtaBadge:                   &etaTag,
+			CTA:                        checkoutBtn,
+			FreeDeliveryThresholdCents: atoms.IntPtr(1800),
+			NudgePrefix:                "Add",
+			UnlockedLabel:              "FREE Priority Delivery unlocked!",
+			Motion: &atoms.MotionSpec{
+				Enter:         atoms.MotionTransitionSlideUp,
+				Exit:          atoms.MotionTransitionSlideDown,
+				DurationToken: atoms.MotionDurationNormal,
+			},
 		}).
 		WithTracking("page_loaded", map[string]any{
 			"vertical":      verticalID,
@@ -408,14 +418,14 @@ func (m *Module) renderOrderTrackScreen(req domain.ScreenRequest) snippets.PageR
 
 	if !hasOrder {
 		order = foodOrder{
-			OrderID:        "BTS-DEMO",
+			OrderID:        "BTS-4091",
 			RestaurantName: defaultRest.Name,
 			Address:        city + " Central",
 			ItemCount:      2,
-			ETAMins:        defaultRest.DeliveryMins,
-			Progress:       0.45,
-			StageLabel:     "Ready for your first order",
-			RiderName:      "Dispatch standby",
+			ETAMins:        11,
+			Progress:       0.72,
+			StageLabel:     "Rider en route · 11 mins",
+			RiderName:      "Aarav K.",
 		}
 	}
 
@@ -424,39 +434,28 @@ func (m *Module) renderOrderTrackScreen(req domain.ScreenRequest) snippets.PageR
 		atoms.NewText("Live Order Tracking", theming.TypographyHeadlineSmall, theming.ColorTextPrimary),
 	).
 		WithSubtitle(atoms.NewText(fmt.Sprintf("Order #%s · %s", order.OrderID, order.RestaurantName), theming.TypographyBodySmall, theming.ColorTextSecondary)).
-		WithTrailingTag(atoms.NewTag("PREPARING", theming.ColorSuccessContainer)).
+		WithTrailingTag(atoms.NewTag("EN ROUTE", theming.ColorSuccessContainer)).
 		WithLayout(sectionLayout()).
 		Build()
 
+	orderTracker := buildOrderTrackerSnippet(order)
+
 	prepMetric := snippets.NewMetricCardSnippet(
 		"bites_kitchen_progress",
-		atoms.NewText("Kitchen Prep Progress", theming.TypographyLabelMedium, theming.ColorTextSecondary),
+		atoms.NewText("Live Dispatch Telemetry", theming.TypographyLabelMedium, theming.ColorTextSecondary),
 		atoms.NewText(order.StageLabel, theming.TypographyTitleLarge, theming.ColorBrandPrimary),
 	).
 		WithDelta(atoms.NewTag(fmt.Sprintf("ETA %d mins", order.ETAMins), theming.ColorWarningContainer)).
 		WithProgress(atoms.ProgressAtom{
 			Kind:     "linear",
 			Progress: atoms.Float64Ptr(order.Progress),
-			Label:    fmt.Sprintf("Order #%s · %d items firing in kitchen", order.OrderID, order.ItemCount),
+			Label:    fmt.Sprintf("Order #%s · %d items sealed & en route", order.OrderID, order.ItemCount),
 			Color:    atoms.ColorRef(theming.ColorBrandPrimary),
 		}).
 		WithLayout(cardLayout()).
 		Build()
 
-	backToRestaurants := actions.NewNavigateAction("bites_back_to_restaurants", actions.NavigatePayload{Route: screenHome})
 	refreshTrack := actions.NewRefreshPageAction("bites_refresh_track", actions.RefreshPagePayload{PageID: screenOrderTrack, ShowLoader: true})
-
-	riderCard := snippets.NewCardSnippet(
-		"bites_rider_status",
-		atoms.NewText("Delivery Partner · "+order.RiderName, theming.TypographyTitleMedium, theming.ColorTextPrimary),
-	).
-		WithSubtitle(atoms.NewText(fmt.Sprintf("Assigned to %s · Delivering to %s", order.RestaurantName, order.Address), theming.TypographyBodySmall, theming.ColorTextSecondary)).
-		WithDescription(atoms.NewText("Thermal bag verified · Contactless drop available on arrival.", theming.TypographyBodyMedium, theming.ColorTextSecondary)).
-		WithBadge(atoms.NewTag("ON TIME", theming.ColorSuccessContainer)).
-		WithPrimaryButton(atoms.NewButton("btn_bites_back_restaurants", "Back to Restaurants", "primary", &backToRestaurants)).
-		WithSecondaryButton(atoms.NewButton("btn_bites_refresh_track", "Refresh Status", "outline", &refreshTrack)).
-		WithLayout(cardLayout()).
-		Build()
 
 	toolbarTitle := atoms.NewText("Order #"+order.OrderID, theming.TypographyTitleLarge, theming.ColorTextPrimary)
 
@@ -469,7 +468,8 @@ func (m *Module) renderOrderTrackScreen(req domain.ScreenRequest) snippets.PageR
 			LayoutMode: snippets.LayoutModeCentered,
 			MaxWidthDp: atoms.IntPtr(960),
 		}).
-		AddSnippets(header, prepMetric, riderCard).
+		WithPullToRefresh(refreshTrack).
+		AddSnippets(header, orderTracker, prepMetric).
 		WithTracking("page_loaded", map[string]any{
 			"vertical": verticalID,
 			"page_id":  screenOrderTrack,

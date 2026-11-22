@@ -34,8 +34,8 @@ All changes MUST satisfy these invariants:
 2. **Open/Closed (`OCP`) `VerticalModule` Pattern**:
    - Every vertical app (**Abeta Fresh**, **Abeta Bites**, **Abeta Pulse**, **Abeta Mart**, **Abeta Spark**, **Abeta Trade**) implements `domain.VerticalModule` (`Descriptor()`, `Screens()`, `CanHandleScreen(screenID)`, `RenderScreen(ctx, req)`) under `internal/verticals/<vertical>/`.
    - Never add monolithic `switch screenID` blocks inside `internal/usecase` or `internal/handler`. Adding a new vertical must require only implementing `domain.VerticalModule` and registering it in `cmd/sdui-bff`.
-3. **1:1 `abeta-dev/kmp` Wire Protocol Consumption (`v0.2.0`)**:
-   - Emit typed `v1` SDUI contracts directly from `github.com/abeta-dev/kmp/bff@v0.2.0` (`pkg/sdui/{actions,atoms,snippets,theming}` — 15 Wire Atoms, 17 SnippetTypes including `swipe_deck`, `search_bar`, and `chip_group`, and 18 ActionTypes).
+3. **1:1 `abeta-dev/kmp` Wire Protocol Consumption (`v0.3.0`)**:
+   - Emit typed `v1` SDUI contracts directly from `github.com/abeta-dev/kmp/bff@v0.3.0` (`pkg/sdui/{actions,atoms,snippets,theming}` — 16 Wire Atoms incl. `CountdownAtom`, 21 canonical SnippetTypes including `swipe_deck`, `search_bar`, `chip_group`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block`, 18 ActionTypes, 7 ambient `MotionLoopEffect`s, and Free-Delivery threshold `FloatingCartSpec` docks).
    - Wrap all `/api/v1/*` JSON responses in `github.com/abeta-dev/go-libs@v0.4.0` `ginmw.Envelope` (`ginmw.RespondSuccess`, `ginmw.RespondError`, `ginmw.RespondErrorWithDetail`).
    - Return structured `follow_up_actions` (`[]actions.ActionTrigger`) on mutation responses so the KMP `RemoteApiCallExecutor` triggers celebrations, toasts, and navigation seamlessly.
 4. **KMP String-Only Tracking Property Rule**:

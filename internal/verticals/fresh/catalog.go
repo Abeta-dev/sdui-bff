@@ -45,6 +45,125 @@ func buildHeaderSnippet(city string, orderCount int) snippets.SnippetEnvelope {
 		Build()
 }
 
+func buildMarqueeStripSnippet() snippets.SnippetEnvelope {
+	boltIcon := atoms.NewIcon("bolt", 16, theming.ColorBrandPrimary)
+	shippingIcon := atoms.NewIcon("local_shipping", 16, theming.ColorSuccess)
+	checkIcon := atoms.NewIcon("check_circle", 16, theming.ColorSuccess)
+	expressBadge := atoms.NewTag("8 MIN", theming.ColorSuccessContainer)
+	freeBadge := atoms.NewTag("FREE", theming.ColorBrandContainer)
+
+	return snippets.NewMarqueeStripSnippet(
+		"fresh_perks_marquee",
+		"fresh_perks_ticker",
+		snippets.MarqueeItem{
+			ID:    "mq_fresh_dispatch",
+			Text:  "8-min dispatch",
+			Icon:  &boltIcon,
+			Badge: &expressBadge,
+		},
+		snippets.MarqueeItem{
+			ID:    "mq_fresh_free_delivery",
+			Text:  "Free delivery over $15",
+			Icon:  &shippingIcon,
+			Badge: &freeBadge,
+		},
+		snippets.MarqueeItem{
+			ID:   "mq_fresh_zero_surge",
+			Text: "Zero surge pricing",
+			Icon: &checkIcon,
+		},
+	).
+		WithVelocityDpPerSec(46).
+		WithSeparator("•").
+		WithLayout(atoms.LayoutConfig{
+			Padding:      atoms.SymmetricSpacing(theming.SpacingMD.Dp(), theming.SpacingSM.Dp()),
+			BgColor:      atoms.ColorRef(theming.ColorSurfaceSecondary),
+			FillMaxWidth: atoms.BoolPtr(true),
+		}).
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionFadeIn,
+			DurationToken: atoms.MotionDurationFast,
+			LoopEffect:    atoms.MotionLoopMarquee,
+		}).
+		WithTracking("fresh_marquee_impression", map[string]any{
+			"vertical": verticalID,
+			"strip_id": "fresh_perks_ticker",
+		}).
+		Build()
+}
+
+func buildFlashNudgeSnippet(city string) snippets.SnippetEnvelope {
+	badge := atoms.NewTag("FLASH DROP", theming.ColorWarningContainer)
+	badge.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopWiggle}
+
+	countdown := atoms.NewCountdown("fresh_drop_timer", 420, "Flash drop ends in")
+	countdown.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopHeartbeat}
+
+	produceNav := actions.NewNavigateAction("fresh_flash_shop_produce", actions.NavigatePayload{
+		Route: "fresh-home?filter=produce",
+	})
+	ctaBtn := atoms.NewButton("btn_fresh_flash_drop", "Shop Drop", "primary", &produceNav)
+	ctaBtn.Size = "sm"
+
+	return snippets.NewNudgeBarSnippet(
+		"fresh_flash_nudge",
+		"fresh_flash_nudge",
+		atoms.NewText("Chilled Flash Drop · Extra 20% off in "+city, theming.TypographyTitleSmall, theming.ColorTextPrimary),
+	).
+		WithSubtitle(atoms.NewText("Reserved for your 8-min express slot · Limited cold-hub stock", theming.TypographyBodySmall, theming.ColorTextSecondary)).
+		WithIcon(atoms.NewIcon("bolt", 20, theming.ColorWarning)).
+		WithBadge(badge).
+		WithCountdown(countdown).
+		WithProgress(0.78).
+		WithCTA(ctaBtn).
+		WithDismissible(true).
+		WithPointerEdge(snippets.PointerEdgeBottom).
+		WithOnDismiss(actions.NewTrackEventAction("fresh_flash_nudge_dismissed", actions.TrackEventPayload{
+			EventName: "nudge_dismissed",
+			Properties: map[string]any{
+				"vertical": verticalID,
+				"nudge_id": "fresh_flash_nudge",
+			},
+		})).
+		WithLayout(cardLayout()).
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionSlideDown,
+			DurationToken: atoms.MotionDurationFast,
+		}).
+		WithTracking("fresh_nudge_impression", map[string]any{
+			"vertical": verticalID,
+			"nudge_id": "fresh_flash_nudge",
+			"city":     city,
+		}).
+		Build()
+}
+
+func buildLoyaltyComposedSnippet(orderCount int) snippets.SnippetEnvelope {
+	const totalStamps = 5
+	earned := 3 + orderCount
+	if earned > totalStamps {
+		earned = totalStamps
+	}
+	rewardLabel := fmt.Sprintf("%d more express orders to unlock $5 Fresh Club credit", totalStamps-earned)
+	if earned >= totalStamps {
+		rewardLabel = "$5 Fresh Club reward unlocked! Tap to redeem on your next basket"
+	}
+	cta := actions.NewShowToastAction("fresh_loyalty_claim_toast", actions.ShowToastPayload{
+		Message:    "Abeta Fresh Club · Earn 1 stamp per 8-min order for $5 credit",
+		DurationMs: 2200,
+		Variant:    "success",
+	})
+	return snippets.MoldLoyaltyStampRecipe(
+		"fresh_loyalty_stamp_card",
+		"abeta_fresh_club",
+		"Abeta Fresh Club",
+		earned,
+		totalStamps,
+		rewardLabel,
+		cta,
+	)
+}
+
 func buildSearchSnippet(query string) snippets.SnippetEnvelope {
 	return snippets.NewSearchBarSnippet("fresh_search_bar", "fresh_search", "Search avocados, A2 milk, sourdough, drinks...").
 		WithQuery(query).

@@ -44,6 +44,76 @@ type categoryChip struct {
 	Label string
 }
 
+func buildMarqueeStrip() snippets.SnippetEnvelope {
+	shippingIcon := atoms.NewIcon("local_shipping", 16, theming.ColorSuccess)
+	boltIcon := atoms.NewIcon("bolt", 16, theming.ColorWarning)
+	checkIcon := atoms.NewIcon("check_circle", 16, theming.ColorBrandPrimary)
+	freeShipBadge := atoms.NewTag("FREE $25+", theming.ColorSuccessContainer)
+	flashBadge := atoms.NewTag("FLASH 28%", theming.ColorErrorContainer)
+
+	return snippets.NewMarqueeStripSnippet(
+		"mart_deals_marquee",
+		"mart_live_deals_ticker",
+		snippets.MarqueeItem{
+			ID:    "mq_mart_free_ship",
+			Text:  "Free Next-Day Delivery over $25",
+			Icon:  &shippingIcon,
+			Badge: &freeShipBadge,
+		},
+		snippets.MarqueeItem{
+			ID:    "mq_mart_flash_buds",
+			Text:  "Flash Drop: AuraPods Pro ANC 28% OFF",
+			Icon:  &boltIcon,
+			Badge: &flashBadge,
+		},
+		snippets.MarqueeItem{
+			ID:   "mq_mart_warranty",
+			Text: "Verified Sellers · 30-Day Hassle-Free Returns",
+			Icon: &checkIcon,
+		},
+	).
+		WithVelocityDpPerSec(46).
+		WithSeparator("•").
+		WithLayout(atoms.LayoutConfig{
+			Padding:      atoms.SymmetricSpacing(theming.SpacingMD.Dp(), theming.SpacingSM.Dp()),
+			BgColor:      atoms.ColorRef(theming.ColorSurfaceSecondary),
+			FillMaxWidth: atoms.BoolPtr(true),
+		}).
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionFadeIn,
+			DurationToken: atoms.MotionDurationFast,
+			LoopEffect:    atoms.MotionLoopMarquee,
+		}).
+		WithTracking("mart_marquee_impression", map[string]any{
+			"vertical": verticalID,
+			"strip_id": "mart_live_deals_ticker",
+		}).
+		Build()
+}
+
+func buildFlashDealComposedBlock(products []catalogProduct) snippets.SnippetEnvelope {
+	featured := products[0]
+	for _, p := range products {
+		if p.SKU == "mrt_anc_buds" {
+			featured = p
+			break
+		}
+	}
+	claimNav := actions.NewNavigateAction("mart_claim_flash_"+featured.SKU, actions.NavigatePayload{
+		Route:  fmt.Sprintf("%s?id=%s", screenDetail, featured.SKU),
+		Params: map[string]string{"id": featured.SKU},
+	})
+	return snippets.MoldFlashDealRecipe(
+		"mart_flash_deal_block",
+		"mart_flash_"+featured.SKU,
+		featured.Title+" · Flash Drop",
+		featured.PriceDisplay,
+		featured.OriginalPrice,
+		480,
+		claimNav,
+	)
+}
+
 func buildCategoryChips(activeFilter, query string) snippets.SnippetEnvelope {
 	categories := []categoryChip{
 		{ID: "all", Label: "All"},

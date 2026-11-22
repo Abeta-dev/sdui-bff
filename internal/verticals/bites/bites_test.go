@@ -56,6 +56,22 @@ func TestBitesFilteringPureVegTopRatedAndSearch(t *testing.T) {
 	if got := countRestaurantCards(allPage); got != 6 {
 		t.Fatalf("expected 6 restaurants on unfiltered bites-home, got %d", got)
 	}
+	var foundMarquee bool
+	for _, env := range allPage.Snippets {
+		if env.SnippetType == snippets.SnippetTypeMarqueeStrip {
+			foundMarquee = true
+			mq, err := snippets.DecodeSnippetData[snippets.MarqueeStripSnippetData](env)
+			if err != nil {
+				t.Fatalf("decode bites marquee_strip: %v", err)
+			}
+			if len(mq.Items) < 3 {
+				t.Errorf("expected >= 3 marquee items on bites-home, got %d", len(mq.Items))
+			}
+		}
+	}
+	if !foundMarquee {
+		t.Fatalf("expected marquee_strip on bites-home")
+	}
 	assertAllTrackingPropsAreStrings(t, allPage)
 
 	vegPage, err := mod.RenderScreen(context.Background(), domain.ScreenRequest{ScreenID: "bites-home", Filter: "veg"})
@@ -116,6 +132,12 @@ func TestBitesRestaurantMenuAndLiveOrderTracking(t *testing.T) {
 	if menuPage.FloatingCart == nil {
 		t.Fatalf("expected FloatingCart on bites-restaurant")
 	}
+	if menuPage.FloatingCart.FreeDeliveryThresholdCents == nil || *menuPage.FloatingCart.FreeDeliveryThresholdCents != 1800 {
+		t.Fatalf("expected FreeDeliveryThresholdCents=1800 on bites-restaurant, got %+v", menuPage.FloatingCart.FreeDeliveryThresholdCents)
+	}
+	if menuPage.FloatingCart.NudgePrefix != "Add" || menuPage.FloatingCart.UnlockedLabel != "FREE Priority Delivery unlocked!" {
+		t.Fatalf("unexpected bites floating cart nudge labels: prefix=%q unlocked=%q", menuPage.FloatingCart.NudgePrefix, menuPage.FloatingCart.UnlockedLabel)
+	}
 	callPayload, err := actions.DecodePayload[actions.CallAPIPayload](*menuPage.FloatingCart.CTA.OnClick)
 	if err != nil {
 		t.Fatalf("decode floating cart CTA: %v", err)
@@ -124,6 +146,13 @@ func TestBitesRestaurantMenuAndLiveOrderTracking(t *testing.T) {
 		t.Errorf("unexpected floating cart call_api: %+v", callPayload)
 	}
 	assertAllTrackingPropsAreStrings(t, menuPage)
+
+	// Verify bites-order-track also renders a valid 4-step demo tracker before any order is placed.
+	defaultTrackPage, err := mod.RenderScreen(context.Background(), domain.ScreenRequest{ScreenID: "bites-order-track"})
+	if err != nil {
+		t.Fatalf("RenderScreen(default bites-order-track) error: %v", err)
+	}
+	assertAllTrackingPropsAreStrings(t, defaultTrackPage)
 
 	// Place a food order and verify follow-up actions.
 	res, err := mod.PlaceFoodOrder(context.Background(), domain.ExpressOrderRequest{
@@ -157,10 +186,38 @@ func TestBitesRestaurantMenuAndLiveOrderTracking(t *testing.T) {
 		t.Errorf("navigate route = %q, want bites-order-track", navPayload.Route)
 	}
 
-	// Verify bites-order-track reflects the placed order ID & has progress metric + rider card.
+	// Verify bites-order-track reflects the placed order ID & has animated 4-step order_tracker.
 	trackPage, err := mod.RenderScreen(context.Background(), domain.ScreenRequest{ScreenID: "bites-order-track"})
 	if err != nil {
 		t.Fatalf("RenderScreen(bites-order-track) error: %v", err)
+	}
+	var foundTracker bool
+	for _, env := range trackPage.Snippets {
+		if env.SnippetType == snippets.SnippetTypeOrderTracker {
+			foundTracker = true
+			tr, decErr := snippets.DecodeSnippetData[snippets.OrderTrackerSnippetData](env)
+			if decErr != nil {
+				t.Fatalf("decode order_tracker: %v", decErr)
+			}
+			if tr.OrderCode != "#"+orderID {
+				t.Errorf("order_code = %q, want #%s", tr.OrderCode, orderID)
+			}
+			if tr.EtaCountdown == nil || tr.EtaCountdown.RemainingSeconds != 660 {
+				t.Errorf("expected 660s eta_countdown, got %+v", tr.EtaCountdown)
+			}
+			if len(tr.Steps) != 4 || !tr.Steps[0].Completed || !tr.Steps[1].Completed || !tr.Steps[2].Active || tr.Steps[3].Completed || tr.Steps[3].Active {
+				t.Errorf("unexpected 4-step order_tracker progression: %+v", tr.Steps)
+			}
+			if tr.Steps[0].Label != "Order Confirmed" || tr.Steps[1].Label != "Kitchen Preparing" || tr.Steps[2].Label != "Rider En Route" || tr.Steps[3].Label != "Delivered" {
+				t.Errorf("unexpected 4-step labels: %+v", tr.Steps)
+			}
+			if tr.RiderName == "" || tr.PrimaryAction == nil || tr.PrimaryAction.Label != "Call Rider" || tr.SecondaryAction == nil || tr.SecondaryAction.Label != "Back to Restaurants" {
+				t.Errorf("unexpected rider/CTA details on order_tracker: rider=%q primary=%+v secondary=%+v", tr.RiderName, tr.PrimaryAction, tr.SecondaryAction)
+			}
+		}
+	}
+	if !foundTracker {
+		t.Fatalf("expected order_tracker snippet on bites-order-track")
 	}
 	raw, _ := json.Marshal(trackPage)
 	if !strings.Contains(string(raw), orderID) {

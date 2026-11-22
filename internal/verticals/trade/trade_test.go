@@ -49,7 +49,7 @@ func TestTradeHomeFilteringAndSearch(t *testing.T) {
 	}
 	assertStringOnlyTrackingProps(t, page)
 
-	var foundHeader, foundSearch, foundChips, foundBanner bool
+	var foundHeader, foundSearch, foundChips, foundComposed, foundBanner bool
 	supplierCards := 0
 	for _, env := range page.Snippets {
 		switch env.SnippetType {
@@ -74,6 +74,19 @@ func TestTradeHomeFilteringAndSearch(t *testing.T) {
 			if decErr != nil || len(cg.Chips) != 5 {
 				t.Fatalf("expected 5 filter chips, got %+v (err=%v)", cg, decErr)
 			}
+		case snippets.SnippetTypeComposedBlock:
+			foundComposed = true
+			cb, decErr := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](env)
+			if decErr != nil {
+				t.Fatalf("decode trade composed_block: %v", decErr)
+			}
+			if cb.RecipeName != "moq_bulk_savings_card" || cb.Root.Kind != snippets.ComposedNodeCard {
+				t.Fatalf("unexpected trade composed_block: %+v", cb)
+			}
+			rawCB, _ := json.Marshal(cb)
+			if !strings.Contains(string(rawCB), snippets.ComposedNodeRollingCounter) || !strings.Contains(string(rawCB), snippets.ComposedNodeColumn) || !strings.Contains(string(rawCB), snippets.ComposedNodeRow) {
+				t.Fatalf("expected CardNode + VStack + HStack + RollingCounterNode in trade composed_block: %s", string(rawCB))
+			}
 		case snippets.SnippetTypeBanner:
 			foundBanner = true
 		case snippets.SnippetTypeCard:
@@ -88,8 +101,8 @@ func TestTradeHomeFilteringAndSearch(t *testing.T) {
 			}
 		}
 	}
-	if !foundHeader || !foundSearch || !foundChips || !foundBanner {
-		t.Fatalf("missing expected trade-home snippets: header=%v search=%v chips=%v banner=%v", foundHeader, foundSearch, foundChips, foundBanner)
+	if !foundHeader || !foundSearch || !foundChips || !foundComposed || !foundBanner {
+		t.Fatalf("missing expected trade-home snippets: header=%v search=%v chips=%v composed=%v banner=%v", foundHeader, foundSearch, foundChips, foundComposed, foundBanner)
 	}
 	if supplierCards != 6 {
 		t.Fatalf("expected 6 B2B suppliers, got %d", supplierCards)

@@ -123,6 +123,19 @@ func TestOpsAndDocsEndpoints(t *testing.T) {
 		if spec["openapi"] != "3.1.0" {
 			t.Fatalf("openapi version = %v, want 3.1.0", spec["openapi"])
 		}
+		rawSpec := wSpec.Body.String()
+		for _, token := range []string{
+			"github.com/abeta-dev/kmp/bff@v0.3.0",
+			"nudge_bar",
+			"marquee_strip",
+			"order_tracker",
+			"composed_block",
+			"free_delivery_threshold_cents",
+		} {
+			if !strings.Contains(rawSpec, token) {
+				t.Errorf("OpenAPI spec missing Wave 6 contract token %q", token)
+			}
+		}
 		paths, _ := spec["paths"].(map[string]any)
 		for _, p := range []string{
 			"/llms.txt",

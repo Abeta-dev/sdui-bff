@@ -395,6 +395,7 @@ func (m *Module) renderDeck(req domain.ScreenRequest) snippets.PageResponse {
 		WithLayout(sectionPadding()).
 		Build()
 
+	primeBoostNudge := buildPrimeBoostNudge(len(visible), matchCount)
 	chips := buildFilterChips(filter)
 	deck := buildSwipeDeck(visible)
 
@@ -425,7 +426,7 @@ func (m *Module) renderDeck(req domain.ScreenRequest) snippets.PageResponse {
 				"match_count":   strconv.Itoa(matchCount),
 			},
 		})).
-		AddSnippets(header, chips, deck).
+		AddSnippets(header, primeBoostNudge, chips, deck).
 		WithTracking("page_loaded", map[string]any{
 			"vertical":      verticalID,
 			"page_id":       screenDeck,

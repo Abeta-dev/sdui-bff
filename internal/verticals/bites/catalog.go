@@ -37,6 +37,134 @@ type restaurantSpec struct {
 	Dishes       []dishSpec
 }
 
+func buildMarqueeStrip() snippets.SnippetEnvelope {
+	boltIcon := atoms.NewIcon("bolt", 16, theming.ColorBrandPrimary)
+	starIcon := atoms.NewIcon("star", 16, theming.ColorWarning)
+	shippingIcon := atoms.NewIcon("local_shipping", 16, theming.ColorSuccess)
+	prioBadge := atoms.NewTag("FREE $18+", theming.ColorSuccessContainer)
+	hotBadge := atoms.NewTag("HOT DEALS", theming.ColorWarningContainer)
+
+	return snippets.NewMarqueeStripSnippet(
+		"bites_offers_marquee",
+		"bites_hot_offers_ticker",
+		snippets.MarqueeItem{
+			ID:    "mq_bites_priority",
+			Text:  "FREE Priority Delivery over $18",
+			Icon:  &shippingIcon,
+			Badge: &prioBadge,
+		},
+		snippets.MarqueeItem{
+			ID:    "mq_bites_hot_meals",
+			Text:  "20% off Slow-Cooked Biryani & Wood-Fired Pies",
+			Icon:  &boltIcon,
+			Badge: &hotBadge,
+		},
+		snippets.MarqueeItem{
+			ID:   "mq_bites_thermal",
+			Text: "Sealed thermal delivery bags · Live kitchen ETA",
+			Icon: &starIcon,
+		},
+	).
+		WithVelocityDpPerSec(44).
+		WithSeparator("•").
+		WithLayout(atoms.LayoutConfig{
+			Padding:      atoms.SymmetricSpacing(theming.SpacingMD.Dp(), theming.SpacingSM.Dp()),
+			BgColor:      atoms.ColorRef(theming.ColorSurfaceSecondary),
+			FillMaxWidth: atoms.BoolPtr(true),
+		}).
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionFadeIn,
+			DurationToken: atoms.MotionDurationFast,
+			LoopEffect:    atoms.MotionLoopMarquee,
+		}).
+		WithTracking("bites_marquee_impression", map[string]any{
+			"vertical": verticalID,
+			"strip_id": "bites_hot_offers_ticker",
+		}).
+		Build()
+}
+
+func buildOrderTrackerSnippet(order foodOrder) snippets.SnippetEnvelope {
+	confirmedIcon := atoms.NewIcon("check_circle", 18, theming.ColorSuccess)
+	kitchenIcon := atoms.NewIcon("star", 18, theming.ColorSuccess)
+	riderIcon := atoms.NewIcon("local_shipping", 18, theming.ColorBrandPrimary)
+	deliveredIcon := atoms.NewIcon("home", 18, theming.ColorTextTertiary)
+
+	etaCountdown := atoms.NewCountdown("bites_order_eta_timer", 660, "Arriving in")
+	etaCountdown.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopPulse}
+
+	etaBadge := atoms.NewTag(fmt.Sprintf("%d MINS", order.ETAMins), theming.ColorSuccessContainer)
+	etaBadge.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopFloat}
+
+	callRiderAct := actions.NewShowToastAction("bites_call_rider_"+order.OrderID, actions.ShowToastPayload{
+		Message:    fmt.Sprintf("Connecting masked voice line to %s", order.RiderName),
+		DurationMs: 2200,
+		Variant:    "info",
+	})
+	callRiderBtn := atoms.NewButton("btn_bites_call_rider", "Call Rider", "primary", &callRiderAct)
+	callRiderBtn.Size = "sm"
+
+	backToRestaurants := actions.NewNavigateAction("bites_back_to_restaurants", actions.NavigatePayload{
+		Route: screenHome,
+	})
+	backBtn := atoms.NewButton("btn_bites_back_restaurants", "Back to Restaurants", "outline", &backToRestaurants)
+	backBtn.Size = "sm"
+
+	return snippets.NewOrderTrackerSnippet(
+		"bites_live_order_tracker",
+		"bites_tracker_"+order.OrderID,
+		"#"+order.OrderID,
+		atoms.NewText(fmt.Sprintf("%s · %d items en route", order.RestaurantName, order.ItemCount), theming.TypographyTitleMedium, theming.ColorTextPrimary),
+		snippets.OrderTrackerStep{
+			ID:        "step_confirmed",
+			Label:     "Order Confirmed",
+			Caption:   order.RestaurantName,
+			Icon:      &confirmedIcon,
+			Completed: true,
+			Active:    false,
+		},
+		snippets.OrderTrackerStep{
+			ID:        "step_preparing",
+			Label:     "Kitchen Preparing",
+			Caption:   "Sealed in thermal hot bag",
+			Icon:      &kitchenIcon,
+			Completed: true,
+			Active:    false,
+		},
+		snippets.OrderTrackerStep{
+			ID:        "step_en_route",
+			Label:     "Rider En Route",
+			Caption:   order.RiderName + " · 1.1 km away",
+			Icon:      &riderIcon,
+			Completed: false,
+			Active:    true,
+		},
+		snippets.OrderTrackerStep{
+			ID:        "step_delivered",
+			Label:     "Delivered",
+			Caption:   order.Address,
+			Icon:      &deliveredIcon,
+			Completed: false,
+			Active:    false,
+		},
+	).
+		WithEtaCountdown(etaCountdown).
+		WithEtaBadge(etaBadge).
+		WithRider(order.RiderName, fmt.Sprintf("4.9★ · Insulated thermal pack · Delivering to %s", order.Address)).
+		WithPrimaryAction(callRiderBtn).
+		WithSecondaryAction(backBtn).
+		WithLayout(cardLayout()).
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionSlideUp,
+			DurationToken: atoms.MotionDurationNormal,
+		}).
+		WithTracking("bites_order_tracker_viewed", map[string]any{
+			"vertical": verticalID,
+			"order_id": order.OrderID,
+		}).
+		Build()
+}
+
 func buildFilterChipGroup(activeFilter string) snippets.SnippetEnvelope {
 	specs := []struct {
 		id    string

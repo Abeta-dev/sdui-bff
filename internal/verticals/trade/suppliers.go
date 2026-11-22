@@ -37,6 +37,92 @@ type filterChipSpec struct {
 	Label string
 }
 
+func buildBulkSavingsComposedBlock(suppliers []supplierProfile) snippets.SnippetEnvelope {
+	featured := suppliers[0]
+	for _, s := range suppliers {
+		if s.ID == "trd_voltcore" {
+			featured = s
+			break
+		}
+	}
+
+	savingsBadge := atoms.NewTag("MOQ BULK SAVINGS", theming.ColorSuccessContainer)
+	savingsBadge.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopPulse}
+	tierBadge := atoms.NewTag("2,000+ UNITS", theming.ColorBrandContainer)
+
+	openBulkRFQ := actions.NewNavigateAction("trade_bulk_savings_rfq", actions.NavigatePayload{
+		Route:  fmt.Sprintf("%s?id=%s", screenSupplier, featured.ID),
+		Params: map[string]string{"id": featured.ID},
+	})
+	ctaBtn := atoms.NewButton("btn_trade_bulk_savings", "Lock Bulk Tier RFQ", "primary", &openBulkRFQ)
+	ctaBtn.Size = "sm"
+
+	blockLayout := atoms.LayoutConfig{
+		Padding:      atoms.UniformSpacing(theming.SpacingLG.Dp()),
+		BgColor:      atoms.ColorRef(theming.ColorSurfacePrimary),
+		CornerRadius: atoms.UniformRadius(theming.RadiusLG.Dp()),
+		Border: &atoms.BorderSpec{
+			WidthDp: 1,
+			Color:   *atoms.ColorRef(theming.ColorSuccess),
+		},
+		FillMaxWidth: atoms.BoolPtr(true),
+	}
+
+	root := snippets.CardNode(
+		blockLayout,
+		snippets.VStack(
+			theming.SpacingMD.Dp(),
+			snippets.HStack(
+				theming.SpacingSM.Dp(),
+				snippets.TagNode(savingsBadge),
+				snippets.TagNode(tierBadge),
+			).WithArrangement(snippets.ComposedAlignSpaceBetween).WithAlignment("", snippets.ComposedAlignCenter),
+			snippets.TextNode(atoms.NewText(
+				featured.Name+" · "+featured.PrimaryProduct,
+				theming.TypographyTitleMedium,
+				theming.ColorTextPrimary,
+			)),
+			snippets.HStack(
+				theming.SpacingSM.Dp(),
+				snippets.RollingCounterNode("$10,200", theming.TypographyHeadlineSmall, theming.ColorBrandPrimary),
+				snippets.TextNode(atoms.NewText(
+					"saved per 2,000-unit lot (35% off starter MOQ)",
+					theming.TypographyBodySmall,
+					theming.ColorTextSecondary,
+				)),
+			).WithAlignment("", snippets.ComposedAlignCenter),
+			snippets.ProgressNode(atoms.ProgressAtom{
+				Kind:     "linear",
+				Progress: atoms.Float64Ptr(0.82),
+				Label:    "Tier 3 factory-direct pricing · GST escrow protection included",
+				Color:    atoms.ColorRef(theming.ColorSuccess),
+			}),
+			snippets.DividerNode(atoms.DividerAtom{
+				ThicknessDp: atoms.Float64Ptr(1),
+				Color:       atoms.ColorRef(theming.ColorDivider),
+			}),
+			snippets.ButtonNode(ctaBtn),
+		),
+	).WithNodeID("trade_moq_bulk_savings_root").WithMotion(atoms.MotionSpec{
+		Enter:         atoms.MotionTransitionScaleIn,
+		DurationToken: atoms.MotionDurationNormal,
+		LoopEffect:    atoms.MotionLoopGlowRing,
+	})
+
+	return snippets.NewComposedBlockSnippet("trade_moq_bulk_savings", "trade_moq_bulk_savings", root).
+		WithRecipeName("moq_bulk_savings_card").
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionSlideUp,
+			DurationToken: atoms.MotionDurationNormal,
+		}).
+		WithTracking("composed_recipe_viewed", map[string]any{
+			"vertical":    verticalID,
+			"recipe":      "moq_bulk_savings_card",
+			"supplier_id": featured.ID,
+		}).
+		Build()
+}
+
 func buildTradeChips(activeFilter, query string) snippets.SnippetEnvelope {
 	chips := []filterChipSpec{
 		{ID: "all", Label: "All"},

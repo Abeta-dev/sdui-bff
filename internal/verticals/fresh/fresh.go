@@ -118,9 +118,12 @@ func (m *Module) RenderScreen(ctx context.Context, req domain.ScreenRequest) (sn
 	pageID := req.ScreenID
 
 	headerSnippet := buildHeaderSnippet(city, orderCount)
+	marqueeSnippet := buildMarqueeStripSnippet()
 	searchSnippet := buildSearchSnippet(query)
 	chipsSnippet := buildCategoryChipsSnippet(filter)
+	nudgeSnippet := buildFlashNudgeSnippet(city)
 	bannerSnippet := buildPromoBannerSnippet(city, filter, query, len(filtered), orderCount)
+	loyaltySnippet := buildLoyaltyComposedSnippet(orderCount)
 
 	var catalogSnippet snippets.SnippetEnvelope
 	if len(filtered) == 0 {
@@ -142,6 +145,7 @@ func (m *Module) RenderScreen(ctx context.Context, req domain.ScreenRequest) (sn
 	})
 	checkoutCTA := atoms.NewButton("btn_fresh_express_checkout", "Checkout · 8m", "primary", &checkoutAction)
 	etaBadge := atoms.NewTag("8 mins", theming.ColorSuccessContainer)
+	etaBadge.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopFloat}
 
 	return snippets.NewPage(pageID, "Abeta Fresh · 8-Min Delivery").
 		WithToolbar(snippets.ToolbarSpec{
@@ -167,11 +171,14 @@ func (m *Module) RenderScreen(ctx context.Context, req domain.ScreenRequest) (sn
 				"result_count": strconv.Itoa(len(filtered)),
 			},
 		})).
-		AddSnippets(headerSnippet, searchSnippet, chipsSnippet, bannerSnippet, catalogSnippet).
+		AddSnippets(headerSnippet, marqueeSnippet, searchSnippet, chipsSnippet, nudgeSnippet, bannerSnippet, catalogSnippet, loyaltySnippet).
 		WithFloatingCart(snippets.FloatingCartSpec{
-			Label:    "Express Cart",
-			EtaBadge: &etaBadge,
-			CTA:      checkoutCTA,
+			Label:                      "Express Cart",
+			EtaBadge:                   &etaBadge,
+			CTA:                        checkoutCTA,
+			FreeDeliveryThresholdCents: atoms.IntPtr(1500),
+			NudgePrefix:                "Add",
+			UnlockedLabel:              "FREE 8-min delivery unlocked!",
 			Motion: &atoms.MotionSpec{
 				Enter:         atoms.MotionTransitionSlideUp,
 				Exit:          atoms.MotionTransitionSlideDown,

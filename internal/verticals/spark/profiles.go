@@ -26,6 +26,54 @@ type discoveryProfile struct {
 	MutualLike   bool
 }
 
+func buildPrimeBoostNudge(visibleCount, matchCount int) snippets.SnippetEnvelope {
+	boostBadge := atoms.NewTag("PRIME BOOST", theming.ColorWarningContainer)
+	boostBadge.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopHeartbeat}
+
+	boostAct := actions.NewTriggerFeedbackAction("spark_prime_boost_fx", actions.TriggerFeedbackPayload{
+		Effect:     actions.FeedbackCelebration,
+		Title:      "Prime Boost Activated!",
+		Subtitle:   "3× discovery visibility live for the next 30 minutes",
+		DurationMs: 2400,
+	})
+	boostCTA := atoms.NewButton("btn_spark_prime_boost", "Boost Now", "primary", &boostAct)
+	boostCTA.Size = "sm"
+
+	return snippets.NewNudgeBarSnippet(
+		"spark_prime_boost_nudge",
+		"spark_prime_boost",
+		atoms.NewText("Prime Boost · 3× Profile Visibility", theming.TypographyTitleSmall, theming.ColorTextPrimary),
+	).
+		WithSubtitle(atoms.NewText(
+			fmt.Sprintf("%d curated profiles ready · %d active matches in your inbox", visibleCount, matchCount),
+			theming.TypographyBodySmall,
+			theming.ColorTextSecondary,
+		)).
+		WithIcon(atoms.NewIcon("star", 20, theming.ColorWarning)).
+		WithBadge(boostBadge).
+		WithProgress(0.85).
+		WithCTA(boostCTA).
+		WithDismissible(true).
+		WithPointerEdge(snippets.PointerEdgeTop).
+		WithOnDismiss(actions.NewTrackEventAction("spark_boost_nudge_dismissed", actions.TrackEventPayload{
+			EventName: "nudge_dismissed",
+			Properties: map[string]any{
+				"vertical": verticalID,
+				"nudge_id": "spark_prime_boost",
+			},
+		})).
+		WithLayout(cardLayout()).
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionSlideDown,
+			DurationToken: atoms.MotionDurationFast,
+		}).
+		WithTracking("spark_nudge_impression", map[string]any{
+			"vertical": verticalID,
+			"nudge_id": "spark_prime_boost",
+		}).
+		Build()
+}
+
 func buildFilterChips(activeFilter string) snippets.SnippetEnvelope {
 	filterSpecs := []struct {
 		id    string

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/actions"
+	"github.com/abeta-dev/kmp/bff/pkg/sdui/atoms"
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/snippets"
 	"github.com/abeta-dev/sdui-bff/internal/domain"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/fresh"
@@ -56,8 +57,14 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 		if page.FloatingCart.EtaBadge == nil || page.FloatingCart.EtaBadge.Label != "8 mins" {
 			t.Fatalf("expected floating cart ETA badge '8 mins', got %+v", page.FloatingCart.EtaBadge)
 		}
+		if page.FloatingCart.FreeDeliveryThresholdCents == nil || *page.FloatingCart.FreeDeliveryThresholdCents != 1500 {
+			t.Fatalf("expected FreeDeliveryThresholdCents=1500, got %+v", page.FloatingCart.FreeDeliveryThresholdCents)
+		}
+		if page.FloatingCart.NudgePrefix != "Add" || page.FloatingCart.UnlockedLabel != "FREE 8-min delivery unlocked!" {
+			t.Fatalf("unexpected floating cart nudge labels: prefix=%q unlocked=%q", page.FloatingCart.NudgePrefix, page.FloatingCart.UnlockedLabel)
+		}
 
-		var gridFound bool
+		var gridFound, marqueeFound, nudgeFound, composedFound bool
 		for _, env := range page.Snippets {
 			switch env.SnippetType {
 			case snippets.SnippetTypeHeader:
@@ -67,6 +74,39 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 				}
 				if hdr.TrailingTag == nil || hdr.TrailingTag.Label != "Mumbai" {
 					t.Errorf("expected city badge Mumbai, got %+v", hdr.TrailingTag)
+				}
+			case snippets.SnippetTypeMarqueeStrip:
+				marqueeFound = true
+				mq, err := snippets.DecodeSnippetData[snippets.MarqueeStripSnippetData](env)
+				if err != nil {
+					t.Fatalf("decode marquee_strip: %v", err)
+				}
+				if len(mq.Items) != 3 || mq.Items[0].Text != "8-min dispatch" || mq.Items[1].Text != "Free delivery over $15" || mq.Items[2].Text != "Zero surge pricing" {
+					t.Errorf("unexpected fresh marquee_strip items: %+v", mq.Items)
+				}
+			case snippets.SnippetTypeNudgeBar:
+				nudgeFound = true
+				nudge, err := snippets.DecodeSnippetData[snippets.NudgeBarSnippetData](env)
+				if err != nil {
+					t.Fatalf("decode nudge_bar: %v", err)
+				}
+				if nudge.NudgeID != "fresh_flash_nudge" {
+					t.Errorf("nudge_id = %q, want fresh_flash_nudge", nudge.NudgeID)
+				}
+				if nudge.Countdown == nil || nudge.Countdown.CountdownID != "fresh_drop_timer" || nudge.Countdown.RemainingSeconds != 420 || nudge.Countdown.Label != "Flash drop ends in" {
+					t.Errorf("unexpected fresh nudge countdown: %+v", nudge.Countdown)
+				}
+				if nudge.Badge == nil || nudge.Badge.Motion == nil || nudge.Badge.Motion.LoopEffect != atoms.MotionLoopWiggle {
+					t.Errorf("expected MotionLoopWiggle on fresh nudge badge, got %+v", nudge.Badge)
+				}
+			case snippets.SnippetTypeComposedBlock:
+				composedFound = true
+				cb, err := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](env)
+				if err != nil {
+					t.Fatalf("decode composed_block: %v", err)
+				}
+				if cb.RecipeName != "loyalty_stamp_card" || cb.BlockID != "abeta_fresh_club" {
+					t.Errorf("unexpected fresh composed_block: %+v", cb)
 				}
 			case snippets.SnippetTypeGrid:
 				gridFound = true
@@ -89,8 +129,8 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 				}
 			}
 		}
-		if !gridFound {
-			t.Fatalf("expected grid snippet on %s", screenID)
+		if !gridFound || !marqueeFound || !nudgeFound || !composedFound {
+			t.Fatalf("missing expected Wave 6 snippets on %s: grid=%v marquee=%v nudge=%v composed=%v", screenID, gridFound, marqueeFound, nudgeFound, composedFound)
 		}
 
 		assertAllTrackingPropsAreStrings(t, page)
@@ -256,10 +296,16 @@ func TestFreshPlaceExpressOrder(t *testing.T) {
 		t.Errorf("toast variant = %q, want success", toast.Variant)
 	}
 
-	// Verify banner reflects updated order counter.
+	// Verify banner and loyalty stamp card reflect updated order counter (clamping at 5/5 reward unlock).
+	_, _ = mod.PlaceExpressOrder(context.Background(), domain.ExpressOrderRequest{ItemCount: 1})
+	_, _ = mod.PlaceExpressOrder(context.Background(), domain.ExpressOrderRequest{ItemCount: 1})
 	page, err := mod.RenderScreen(context.Background(), domain.ScreenRequest{ScreenID: "fresh-home"})
 	if err != nil {
 		t.Fatalf("RenderScreen after order error: %v", err)
+	}
+	rawPage, _ := json.Marshal(page)
+	if !strings.Contains(string(rawPage), "Redeem Reward") {
+		t.Errorf("expected loyalty composed_block to unlock Redeem Reward after 3 orders")
 	}
 	assertAllTrackingPropsAreStrings(t, page)
 

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/actions"
+	"github.com/abeta-dev/kmp/bff/pkg/sdui/atoms"
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/snippets"
 	"github.com/abeta-dev/sdui-bff/internal/domain"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/pulse"
@@ -56,6 +57,25 @@ func TestPulseCategoryAndSearchFiltering(t *testing.T) {
 	}
 	if got := countGridEvents(allPage); got != 6 {
 		t.Fatalf("expected 6 events on pulse-home, got %d", got)
+	}
+	var foundNudge bool
+	for _, env := range allPage.Snippets {
+		if env.SnippetType == snippets.SnippetTypeNudgeBar {
+			foundNudge = true
+			nudge, decErr := snippets.DecodeSnippetData[snippets.NudgeBarSnippetData](env)
+			if decErr != nil {
+				t.Fatalf("decode pulse nudge_bar: %v", decErr)
+			}
+			if nudge.Countdown == nil || nudge.Countdown.RemainingSeconds != 540 || nudge.Countdown.Label != "Early-bird seats closing in" {
+				t.Errorf("unexpected pulse nudge countdown: %+v", nudge.Countdown)
+			}
+			if nudge.Badge == nil || nudge.Badge.Motion == nil || nudge.Badge.Motion.LoopEffect != atoms.MotionLoopWiggle {
+				t.Errorf("expected MotionLoopWiggle on pulse nudge badge, got %+v", nudge.Badge)
+			}
+		}
+	}
+	if !foundNudge {
+		t.Fatalf("expected urgency nudge_bar on pulse-home")
 	}
 	assertAllTrackingPropsAreStrings(t, allPage)
 

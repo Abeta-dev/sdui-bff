@@ -49,6 +49,52 @@ func buildBookAPIAction(evt eventSpec, seatTier string, qty int, city string) ac
 	})
 }
 
+func buildEarlyBirdNudge(city string, spotlight eventSpec) snippets.SnippetEnvelope {
+	badge := atoms.NewTag("EARLY BIRD", theming.ColorWarningContainer)
+	badge.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopWiggle}
+
+	countdown := atoms.NewCountdown("pulse_early_bird_timer", 540, "Early-bird seats closing in")
+	countdown.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopHeartbeat}
+
+	spotlightNav := actions.NewNavigateAction("pulse_early_bird_open", actions.NavigatePayload{
+		Route: "pulse-event-detail?id=" + spotlight.ID,
+	})
+	ctaBtn := atoms.NewButton("btn_pulse_early_bird", "Lock Seats", "primary", &spotlightNav)
+	ctaBtn.Size = "sm"
+
+	return snippets.NewNudgeBarSnippet(
+		"pulse_early_bird_nudge",
+		"pulse_early_bird_nudge",
+		atoms.NewText("Early-Bird Passes Live in "+city, theming.TypographyTitleSmall, theming.ColorTextPrimary),
+	).
+		WithSubtitle(atoms.NewText(fmt.Sprintf("%s · Reserve front-row pricing before tier jump", spotlight.Title), theming.TypographyBodySmall, theming.ColorTextSecondary)).
+		WithIcon(atoms.NewIcon("star", 20, theming.ColorBrandPrimary)).
+		WithBadge(badge).
+		WithCountdown(countdown).
+		WithProgress(0.82).
+		WithCTA(ctaBtn).
+		WithDismissible(true).
+		WithPointerEdge(snippets.PointerEdgeBottom).
+		WithOnDismiss(actions.NewTrackEventAction("pulse_nudge_dismissed", actions.TrackEventPayload{
+			EventName: "nudge_dismissed",
+			Properties: map[string]any{
+				"vertical": verticalID,
+				"nudge_id": "pulse_early_bird_nudge",
+			},
+		})).
+		WithLayout(cardLayout()).
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionSlideDown,
+			DurationToken: atoms.MotionDurationFast,
+		}).
+		WithTracking("pulse_nudge_impression", map[string]any{
+			"vertical": verticalID,
+			"nudge_id": "pulse_early_bird_nudge",
+			"city":     city,
+		}).
+		Build()
+}
+
 func buildCategoryChips(activeFilter string) snippets.SnippetEnvelope {
 	specs := []struct {
 		id    string

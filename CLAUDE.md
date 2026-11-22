@@ -1,6 +1,6 @@
 # CLAUDE.md — Claude Code Instructions for `abeta-dev/sdui-bff`
 
-This repository is **Abeta SDUI Domain BFF (`github.com/abeta-dev/sdui-bff`)**, a standalone Go `1.26.0` Clean Architecture multi-vertical Server-Driven UI (SDUI) Backend-for-Frontend consuming `github.com/abeta-dev/kmp/bff@v0.2.0` and `github.com/abeta-dev/go-libs@v0.4.0`.
+This repository is **Abeta SDUI Domain BFF (`github.com/abeta-dev/sdui-bff`)**, a standalone Go `1.26.0` Clean Architecture multi-vertical Server-Driven UI (SDUI) Backend-for-Frontend consuming `github.com/abeta-dev/kmp/bff@v0.3.0` and `github.com/abeta-dev/go-libs@v0.4.0`.
 
 Read [AGENTS.md](AGENTS.md) for the complete architectural contract. Below is the operational quick reference for every session.
 

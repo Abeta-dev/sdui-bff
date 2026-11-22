@@ -15,7 +15,7 @@ owned_paths:
   - "Makefile"
 allowed_dependencies:
   - "cmd/sdui-bff -> internal/handler -> internal/usecase -> internal/domain <- internal/infra & internal/verticals/*"
-  - "github.com/abeta-dev/kmp/bff@v0.2.0 (pkg/sdui/{actions,atoms,snippets,theming})"
+  - "github.com/abeta-dev/kmp/bff@v0.3.0 (pkg/sdui/{actions,atoms,snippets,theming})"
   - "github.com/abeta-dev/go-libs@v0.4.0 (ginmw, apperror, health, logger, env, shutdown)"
   - "github.com/gin-gonic/gin, github.com/andybalholm/brotli"
 forbidden_dependencies:
@@ -41,12 +41,12 @@ verification_command: "./scripts/verify_all.sh"
     6. **Abeta Trade** (`abeta-trade` — B2B Wholesale & RFQ Procurement)
   - Open/Closed (`OCP`) `domain.VerticalModule` architecture, search/filter rendering, mutex-protected vertical stores, and `follow_up_actions` orchestration.
   - Dual-mode integration with `Abeta-dev/layout-engine` via `internal/infra/layoutclient` with seamless zero-dependency standalone fallback.
-  - 1:1 wire parity with `Abeta-dev/kmp` (`github.com/abeta-dev/kmp/bff@v0.2.0` + `github.com/abeta-dev/go-libs@v0.4.0`), OpenAPI 3.1 + Scalar docs (`/openapi.json`, `/docs`), distroless Docker + 3-service Compose stack, and CI/CD security gates.
+  - 1:1 wire parity with `Abeta-dev/kmp` (`github.com/abeta-dev/kmp/bff@v0.3.0` + `github.com/abeta-dev/go-libs@v0.4.0`), OpenAPI 3.1 + Scalar docs (`/openapi.json`, `/docs`), distroless Docker + 3-service Compose stack, and CI/CD security gates.
 
 ## Non-Negotiable Architecture & PR Review Gates
 1. **Strict Clean Architecture**: `internal/domain` must pass `internal/domain/arch_test.go` with zero Gin, HTTP, handler, usecase, vertical, or infra imports.
 2. **OCP Vertical Composition**: New vertical apps must plug in via `domain.VerticalModule` without adding vertical switches to core usecases or handlers.
-3. **1:1 KMP Wire Parity (`v0.2.0`)**: Every emitted `PageResponse`, `SnippetEnvelope`, `ActionTrigger`, `FloatingCartSpec`, `AdaptivePageSpec`, and `ginmw.Envelope` must use `github.com/abeta-dev/kmp/bff@v0.2.0` verbatim.
+3. **1:1 KMP Wire Parity (`v0.3.0`)**: Every emitted `PageResponse`, `SnippetEnvelope`, `ActionTrigger`, `FloatingCartSpec`, `AdaptivePageSpec`, and `ginmw.Envelope` must use `github.com/abeta-dev/kmp/bff@v0.3.0` verbatim.
 4. **KMP String-Only Tracking Properties**: Reject any PR that puts non-string values inside `TrackingContract.properties`.
 5. **Race-Free Concurrency & Dual-Mode Resilience**: All stateful vertical stores must guard mutations and reads with mutexes (`go test -count=1 -race -cover ./...`), and `LAYOUT_ENGINE_URL` absence or failure must always degrade cleanly to standalone rendering.
 6. **Security, DevOps & Brand Hygiene**: Workflows must pin minimal `permissions:` and `concurrency:`, scan commits using SHA-256-verified MIT `gitleaks` CLI `v8.30.1`, anchor `/sdui-bff` in `.gitignore`, and pass `./scripts/check_brand_hygiene.sh` and `./scripts/verify_all.sh`.

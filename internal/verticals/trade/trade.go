@@ -226,6 +226,7 @@ func (m *Module) renderHome(req domain.ScreenRequest) snippets.PageResponse {
 		Build()
 
 	chips := buildTradeChips(filter, query)
+	bulkSavingsBlock := buildBulkSavingsComposedBlock(allSuppliers)
 
 	assuranceToast := actions.NewShowToastAction("trade_assurance_info", actions.ShowToastPayload{
 		Message:    "Abeta Trade Assurance: 100% escrow protection & GST verification active",
@@ -243,8 +244,8 @@ func (m *Module) renderHome(req domain.ScreenRequest) snippets.PageResponse {
 		WithLayout(cardLayout()).
 		Build()
 
-	pageSnippets := make([]snippets.SnippetEnvelope, 0, 4+len(filtered))
-	pageSnippets = append(pageSnippets, header, searchBar, chips, banner)
+	pageSnippets := make([]snippets.SnippetEnvelope, 0, 5+len(filtered))
+	pageSnippets = append(pageSnippets, header, searchBar, chips, bulkSavingsBlock, banner)
 
 	if len(filtered) == 0 {
 		resetAct := actions.NewNavigateAction("trade_reset_filters", actions.NavigatePayload{Route: screenHome})

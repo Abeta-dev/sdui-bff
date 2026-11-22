@@ -22,7 +22,7 @@ flowchart LR
 
 | Responsibility | Owner Repo |
 | :--- | :--- |
-| Typed wire contracts (`15` Wire Atoms, `17` SnippetTypes, `18` ActionTypes), Compose renderers, offline cache, haptic & platform bridges | `Abeta-dev/kmp` (`github.com/abeta-dev/kmp/bff@v0.2.0`) |
+| Typed wire contracts (`16` Wire Atoms, `21` SnippetTypes, `18` ActionTypes, `7` ambient `MotionLoopEffect`s), Compose renderers, offline cache, haptic & platform bridges | `Abeta-dev/kmp` (`github.com/abeta-dev/kmp/bff@v0.3.0`) |
 | Dynamic CMS authoring, multi-tenant targeting rules, UTC schedule windows, slotting, immutable snapshots, rollback, Visual Layout Studio (`/studio`) | `Abeta-dev/layout-engine` |
 | Stateful domain catalogs, search & category filtering, cart/order/booking/swipe/RFQ state transitions, `follow_up_actions` orchestration, and optional Layout Engine composition | `Abeta-dev/sdui-bff` |
 
@@ -121,11 +121,11 @@ sequenceDiagram
 
 ---
 
-## 5. KMP Wire Protocol & Tracking Invariants (`v0.2.0`)
+## 5. KMP Wire Protocol & Tracking Invariants (`v0.3.0`)
 
 1. **Direct Contract Reuse**:
-   - Import `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` (`v0.2.0`) directly rather than duplicating JSON structs.
-   - Supports all **15 Wire Atoms**, **17 SnippetTypes** (including interactive `swipe_deck`, `search_bar`, and `chip_group`), and **18 ActionTypes**.
+   - Import `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` (`v0.3.0`) directly rather than duplicating JSON structs.
+   - Supports all **16 Wire Atoms** (incl. `CountdownAtom`), **21 SnippetTypes** (including interactive `swipe_deck`, `search_bar`, `chip_group`, plus Wave 6 `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block`), **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks.
 2. **Envelope Wrapping**:
    - Every `/api/v1/*` response uses `github.com/abeta-dev/go-libs@v0.4.0` `ginmw.Envelope` (`{"success": true, "data": ...}` or structured error details).
 3. **KMP String-Only Tracking Property Rule (Non-Negotiable)**:

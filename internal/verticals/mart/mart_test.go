@@ -54,6 +54,9 @@ func TestRenderHomeStructureAndFiltering(t *testing.T) {
 	if page.FloatingCart == nil || page.FloatingCart.CTA.OnClick == nil {
 		t.Fatalf("expected floating cart with CTA click action")
 	}
+	if page.FloatingCart.FreeDeliveryThresholdCents == nil || *page.FloatingCart.FreeDeliveryThresholdCents != 2500 {
+		t.Fatalf("expected FreeDeliveryThresholdCents=2500 on mart-home, got %+v", page.FloatingCart.FreeDeliveryThresholdCents)
+	}
 	checkoutPayload, err := actions.DecodePayload[actions.CallAPIPayload](*page.FloatingCart.CTA.OnClick)
 	if err != nil {
 		t.Fatalf("decode floating cart CTA: %v", err)
@@ -62,10 +65,30 @@ func TestRenderHomeStructureAndFiltering(t *testing.T) {
 		t.Fatalf("unexpected floating cart endpoint: %+v", checkoutPayload)
 	}
 
-	// Verify search bar, chip group, lightning carousel, and responsive product grid.
-	var foundSearch, foundChips, foundCarousel, foundGrid bool
+	// Verify marquee strip, search bar, chip group, flash deal composed block, lightning carousel, and responsive product grid.
+	var foundMarquee, foundComposed, foundSearch, foundChips, foundCarousel, foundGrid bool
 	for _, env := range page.Snippets {
 		switch env.SnippetType {
+		case snippets.SnippetTypeMarqueeStrip:
+			foundMarquee = true
+			mq, err := snippets.DecodeSnippetData[snippets.MarqueeStripSnippetData](env)
+			if err != nil {
+				t.Fatalf("decode marquee_strip: %v", err)
+			}
+			if len(mq.Items) < 3 {
+				t.Fatalf("expected >= 3 marquee items on mart-home, got %d", len(mq.Items))
+			}
+
+		case snippets.SnippetTypeComposedBlock:
+			foundComposed = true
+			cb, err := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](env)
+			if err != nil {
+				t.Fatalf("decode composed_block: %v", err)
+			}
+			if cb.RecipeName != "flash_deal_card" || !strings.HasPrefix(cb.BlockID, "mart_flash_") {
+				t.Fatalf("unexpected mart flash deal composed_block: %+v", cb)
+			}
+
 		case snippets.SnippetTypeSearchBar:
 			foundSearch = true
 			data, err := snippets.DecodeSnippetData[snippets.SearchBarSnippetData](env)
@@ -128,8 +151,8 @@ func TestRenderHomeStructureAndFiltering(t *testing.T) {
 			}
 		}
 	}
-	if !foundSearch || !foundChips || !foundCarousel || !foundGrid {
-		t.Fatalf("missing expected snippets: search=%v chips=%v carousel=%v grid=%v", foundSearch, foundChips, foundCarousel, foundGrid)
+	if !foundMarquee || !foundComposed || !foundSearch || !foundChips || !foundCarousel || !foundGrid {
+		t.Fatalf("missing expected snippets: marquee=%v composed=%v search=%v chips=%v carousel=%v grid=%v", foundMarquee, foundComposed, foundSearch, foundChips, foundCarousel, foundGrid)
 	}
 
 	// Category filter test.

@@ -1,6 +1,6 @@
 ---
 name: abeta-sdui-bff
-description: Develop, test, and operate the Abeta Multi-Vertical SDUI Domain BFF (github.com/abeta-dev/sdui-bff, Go 1.26.0 Clean Architecture) powering 6 stateful vertical apps (Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade) over github.com/abeta-dev/kmp/bff@v0.2.0 and github.com/abeta-dev/go-libs@v0.4.0 with optional Abeta-dev/layout-engine hydration.
+description: Develop, test, and operate the Abeta Multi-Vertical SDUI Domain BFF (github.com/abeta-dev/sdui-bff, Go 1.26.0 Clean Architecture) powering 6 stateful vertical apps (Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade) over github.com/abeta-dev/kmp/bff@v0.3.0 and github.com/abeta-dev/go-libs@v0.4.0 with optional Abeta-dev/layout-engine hydration.
 ---
 
 # Abeta SDUI Domain BFF (`abeta-dev/sdui-bff`)
@@ -34,9 +34,9 @@ sdui-bff/
 
 ## 2. Wire Contract & KMP Parity Rules
 
-1. **Reuse `abeta-dev/kmp/bff@v0.2.0` Contracts Directly**:
+1. **Reuse `abeta-dev/kmp/bff@v0.3.0` Contracts Directly**:
    - Import `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` directly — never duplicate wire structs.
-   - Maintain full parity with all **15 Wire Atoms**, **17 SnippetTypes** (including `swipe_deck`, `search_bar`, `chip_group`, `product_card`), and **18 ActionTypes**.
+   - Maintain full parity with all **16 Wire Atoms** (incl. `CountdownAtom`), **21 canonical SnippetTypes** (including `swipe_deck`, `search_bar`, `chip_group`, `product_card`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block`), **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks.
 2. **Envelope Compatibility**:
    - Wrap all `/api/v1/*` JSON responses in `github.com/abeta-dev/go-libs@v0.4.0` `ginmw.Envelope` (`ginmw.RespondSuccess`, `ginmw.RespondError`, `ginmw.RespondErrorWithDetail`).
 3. **KMP String-Only Tracking Property Rule**:

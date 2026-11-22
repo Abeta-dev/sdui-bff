@@ -5,11 +5,36 @@ import (
 	"html"
 	"net/http"
 
+	"github.com/abeta-dev/kmp/bff/pkg/sdui/snippets"
 	sduibff "github.com/abeta-dev/sdui-bff"
 	"github.com/gin-gonic/gin"
 )
 
 const openAPIVersion = "3.1.0"
+
+var canonicalSnippetTypes = []string{
+	snippets.SnippetTypeHeader,
+	snippets.SnippetTypeBanner,
+	snippets.SnippetTypeMetricCard,
+	snippets.SnippetTypeCard,
+	snippets.SnippetTypeActionRow,
+	snippets.SnippetTypeForm,
+	snippets.SnippetTypeEmptyState,
+	snippets.SnippetTypeDivider,
+	snippets.SnippetTypeSpacer,
+	snippets.SnippetTypeCarousel,
+	snippets.SnippetTypeGrid,
+	snippets.SnippetTypeTabs,
+	snippets.SnippetTypeAccordion,
+	snippets.SnippetTypeProductCard,
+	snippets.SnippetTypeSwipeDeck,
+	snippets.SnippetTypeSearchBar,
+	snippets.SnippetTypeChipGroup,
+	snippets.SnippetTypeNudgeBar,
+	snippets.SnippetTypeMarqueeStrip,
+	snippets.SnippetTypeOrderTracker,
+	snippets.SnippetTypeComposedBlock,
+}
 
 var verticalScreenIDs = []string{
 	"fresh-home",
@@ -156,8 +181,8 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 		"openapi": openAPIVersion,
 		"info": map[string]any{
 			"title":       name,
-			"version":     "1.0.0",
-			"description": "Abeta Multi-Vertical SDUI Domain BFF powering Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, and Abeta Trade with optional Layout Engine hydration.",
+			"version":     "1.1.0",
+			"description": "Abeta Multi-Vertical SDUI Domain BFF powered by github.com/abeta-dev/kmp/bff@v0.3.0 (16 Wire Atoms, 21 canonical SDUI snippet types including nudge_bar, marquee_strip, order_tracker, and server-molded composed_block recipes, 18 ActionTypes, 7 ambient MotionLoopEffects, and Free-Delivery threshold FloatingCartSpec docks) across Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, and Abeta Trade with optional Layout Engine hydration.",
 		},
 		"servers": []map[string]any{
 			{"url": "/", "description": "Current SDUI BFF origin"},
@@ -383,11 +408,32 @@ func openAPISchemas() map[string]any {
 		},
 		"PageResponse": map[string]any{
 			"type":        "object",
-			"description": "Typed v1 SDUI PageResponse from github.com/abeta-dev/kmp/bff/pkg/sdui/snippets",
+			"description": "Typed v1 SDUI PageResponse from github.com/abeta-dev/kmp/bff@v0.3.0 (21 canonical snippet types, adaptive_layout, floating_cart with free-delivery threshold nudges, and string-only tracking)",
 			"properties": map[string]any{
-				"page_id":  map[string]any{"type": "string"},
-				"title":    map[string]any{"type": "string"},
-				"snippets": map[string]any{"type": "array", "items": map[string]any{"type": "object"}},
+				"page_id": map[string]any{"type": "string"},
+				"title":   map[string]any{"type": "string"},
+				"snippets": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"snippet_id":   map[string]any{"type": "string"},
+							"snippet_type": map[string]any{"type": "string", "enum": canonicalSnippetTypes},
+							"data":         map[string]any{"type": "object", "additionalProperties": true},
+						},
+					},
+				},
+				"floating_cart": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"label":                         map[string]any{"type": "string"},
+						"free_delivery_threshold_cents": map[string]any{"type": "integer"},
+						"nudge_prefix":                  map[string]any{"type": "string"},
+						"unlocked_label":                map[string]any{"type": "string"},
+					},
+				},
+				"adaptive_layout": map[string]any{"type": "object", "additionalProperties": true},
+				"tracking":        map[string]any{"type": "object", "additionalProperties": true},
 			},
 		},
 		"ActionExecuteRequest": map[string]any{
