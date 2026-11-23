@@ -65,8 +65,8 @@ func TestRenderHomeStructureAndFiltering(t *testing.T) {
 		t.Fatalf("unexpected floating cart endpoint: %+v", checkoutPayload)
 	}
 
-	// Verify marquee strip, search bar, chip group, flash deal composed block, lightning carousel, and responsive product grid.
-	var foundMarquee, foundComposed, foundSearch, foundChips, foundCarousel, foundGrid bool
+	// Verify marquee strip, search bar, chip group, flash deal & price/rating composed blocks, lightning carousel, and responsive product grid.
+	var foundMarquee, foundFlashDeal, foundPriceRating, foundSearch, foundChips, foundCarousel, foundGrid bool
 	for _, env := range page.Snippets {
 		switch env.SnippetType {
 		case snippets.SnippetTypeMarqueeStrip:
@@ -80,13 +80,26 @@ func TestRenderHomeStructureAndFiltering(t *testing.T) {
 			}
 
 		case snippets.SnippetTypeComposedBlock:
-			foundComposed = true
 			cb, err := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](env)
 			if err != nil {
 				t.Fatalf("decode composed_block: %v", err)
 			}
-			if cb.RecipeName != "flash_deal_card" || !strings.HasPrefix(cb.BlockID, "mart_flash_") {
-				t.Fatalf("unexpected mart flash deal composed_block: %+v", cb)
+			switch cb.RecipeName {
+			case "flash_deal_card":
+				foundFlashDeal = true
+				if !strings.HasPrefix(cb.BlockID, "mart_flash_") {
+					t.Fatalf("unexpected mart flash deal composed_block: %+v", cb)
+				}
+			case "price_rating_highlight":
+				foundPriceRating = true
+				rawCB, _ := json.Marshal(cb)
+				for _, wantKind := range []string{snippets.ComposedNodePrice, snippets.ComposedNodeRating, snippets.ComposedNodeChip, snippets.ComposedNodeKeyValueRow} {
+					if !strings.Contains(string(rawCB), `"`+wantKind+`"`) {
+						t.Errorf("mart price_rating_highlight missing composed node kind %q", wantKind)
+					}
+				}
+			default:
+				t.Fatalf("unexpected mart composed_block recipe: %+v", cb)
 			}
 
 		case snippets.SnippetTypeSearchBar:
@@ -151,8 +164,8 @@ func TestRenderHomeStructureAndFiltering(t *testing.T) {
 			}
 		}
 	}
-	if !foundMarquee || !foundComposed || !foundSearch || !foundChips || !foundCarousel || !foundGrid {
-		t.Fatalf("missing expected snippets: marquee=%v composed=%v search=%v chips=%v carousel=%v grid=%v", foundMarquee, foundComposed, foundSearch, foundChips, foundCarousel, foundGrid)
+	if !foundMarquee || !foundFlashDeal || !foundPriceRating || !foundSearch || !foundChips || !foundCarousel || !foundGrid {
+		t.Fatalf("missing expected snippets: marquee=%v flash=%v priceRating=%v search=%v chips=%v carousel=%v grid=%v", foundMarquee, foundFlashDeal, foundPriceRating, foundSearch, foundChips, foundCarousel, foundGrid)
 	}
 
 	// Category filter test.
@@ -226,8 +239,17 @@ func TestRenderProductDetailAccordionsAndShare(t *testing.T) {
 		t.Fatalf("expected title for AuraPods Pro ANC Earbuds, got %q", detailPage.Title)
 	}
 
-	var foundHero, foundSpecs, foundReviews bool
+	var foundHero, foundPriceRating, foundSpecs, foundReviews bool
 	for _, env := range detailPage.Snippets {
+		if env.SnippetType == snippets.SnippetTypeComposedBlock {
+			cb, decErr := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](env)
+			if decErr != nil {
+				t.Fatalf("decode detail composed_block: %v", decErr)
+			}
+			if cb.RecipeName == "price_rating_highlight" {
+				foundPriceRating = true
+			}
+		}
 		switch env.SnippetID {
 		case "mart_detail_hero":
 			foundHero = true
@@ -270,8 +292,8 @@ func TestRenderProductDetailAccordionsAndShare(t *testing.T) {
 			}
 		}
 	}
-	if !foundHero || !foundSpecs || !foundReviews {
-		t.Fatalf("missing product detail sections: hero=%v specs=%v reviews=%v", foundHero, foundSpecs, foundReviews)
+	if !foundHero || !foundPriceRating || !foundSpecs || !foundReviews {
+		t.Fatalf("missing product detail sections: hero=%v priceRating=%v specs=%v reviews=%v", foundHero, foundPriceRating, foundSpecs, foundReviews)
 	}
 }
 

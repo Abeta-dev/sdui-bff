@@ -7,7 +7,7 @@ import (
 )
 
 // VerticalModule is the Open/Closed Strategy port implemented by each vertical domain BFF
-// (Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade).
+// (Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade, Abeta Pay).
 type VerticalModule interface {
 	Descriptor() AppDescriptor
 	Screens() []ScreenSummary

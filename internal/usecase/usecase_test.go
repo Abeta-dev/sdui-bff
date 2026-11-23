@@ -12,6 +12,7 @@ import (
 	"github.com/abeta-dev/sdui-bff/internal/verticals/bites"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/fresh"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/mart"
+	"github.com/abeta-dev/sdui-bff/internal/verticals/pay"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/pulse"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/spark"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/trade"
@@ -54,6 +55,7 @@ func allVerticals() []domain.VerticalModule {
 		mart.New(),
 		spark.New(),
 		trade.New(),
+		pay.New(),
 	}
 }
 
@@ -64,8 +66,8 @@ func TestScreenComposer_ListAppsAndScreens(t *testing.T) {
 	composer := usecase.NewScreenComposer(nil, verticals...)
 
 	apps := composer.ListApps()
-	if len(apps) != 6 {
-		t.Fatalf("expected 6 apps, got %d", len(apps))
+	if len(apps) != 7 {
+		t.Fatalf("expected 7 apps, got %d", len(apps))
 	}
 
 	expectedIDs := []string{
@@ -75,6 +77,7 @@ func TestScreenComposer_ListAppsAndScreens(t *testing.T) {
 		"abeta-mart",
 		"abeta-spark",
 		"abeta-trade",
+		"abeta-pay",
 	}
 	for i, want := range expectedIDs {
 		if apps[i].ID != want {
@@ -83,8 +86,8 @@ func TestScreenComposer_ListAppsAndScreens(t *testing.T) {
 	}
 
 	screens := composer.ListScreens()
-	if len(screens) < 12 {
-		t.Fatalf("expected at least 12 screens across 6 verticals, got %d", len(screens))
+	if len(screens) < 17 {
+		t.Fatalf("expected at least 17 screens across 7 verticals, got %d", len(screens))
 	}
 }
 

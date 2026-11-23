@@ -88,7 +88,7 @@ func TestBuildServer_LiveRoundTrip(t *testing.T) {
 		t.Fatalf("unexpected /healthz response: status=%d body=%s", resp.StatusCode, string(body))
 	}
 
-	// 2. /api/v1/apps returns all 6 verticals
+	// 2. /api/v1/apps returns all 7 verticals
 	resp, err = http.Get(ts.URL + "/api/v1/apps")
 	if err != nil {
 		t.Fatalf("GET /api/v1/apps: %v", err)
@@ -104,8 +104,8 @@ func TestBuildServer_LiveRoundTrip(t *testing.T) {
 		t.Fatalf("decode /api/v1/apps: %v", err)
 	}
 	_ = resp.Body.Close()
-	if !appsPayload.Success || len(appsPayload.Data.Apps) != 6 {
-		t.Fatalf("expected 6 wired verticals, got %+v", appsPayload)
+	if !appsPayload.Success || len(appsPayload.Data.Apps) != 7 {
+		t.Fatalf("expected 7 wired verticals, got %+v", appsPayload)
 	}
 
 	// 3. /api/v1/screens/fresh-home

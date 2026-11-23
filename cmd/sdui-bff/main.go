@@ -1,5 +1,5 @@
 // Command sdui-bff starts the Abeta Multi-Vertical SDUI Domain BFF HTTP server
-// powering Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, and Abeta Trade.
+// powering Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade, and Abeta Pay.
 package main
 
 import (
@@ -22,6 +22,7 @@ import (
 	"github.com/abeta-dev/sdui-bff/internal/verticals/bites"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/fresh"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/mart"
+	"github.com/abeta-dev/sdui-bff/internal/verticals/pay"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/pulse"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/spark"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/trade"
@@ -126,6 +127,7 @@ func buildServer(cfg appConfig, log *slog.Logger) *http.Server {
 	martMod := mart.New()
 	sparkMod := spark.New()
 	tradeMod := trade.New()
+	payMod := pay.New()
 
 	layoutClient := layoutclient.NewClient(cfg.LayoutEngineURL, nil)
 	composer := usecase.NewScreenComposer(
@@ -136,6 +138,7 @@ func buildServer(cfg appConfig, log *slog.Logger) *http.Server {
 		martMod,
 		sparkMod,
 		tradeMod,
+		payMod,
 	)
 	actionExec := usecase.NewActionExecutor()
 
@@ -149,6 +152,7 @@ func buildServer(cfg appConfig, log *slog.Logger) *http.Server {
 		Mart:           martMod,
 		Spark:          sparkMod,
 		Trade:          tradeMod,
+		Pay:            payMod,
 		JWTSecret:      cfg.JWTSecret,
 		RateLimitRPS:   cfg.RateLimitRPS,
 		Logger:         log,

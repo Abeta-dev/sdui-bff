@@ -11,7 +11,7 @@ This document describes the Clean Architecture boundaries, 3-repo Abeta SDUI Pla
 ```mermaid
 flowchart LR
     KMP["Abeta-dev/kmp\nCompose Multiplatform Client Kit\n(Android · iOS · macOS · JVM · WasmJS · Watch)"]
-    BFF["Abeta-dev/sdui-bff (:8085)\nStateful Multi-Vertical Domain BFF\n(6 Verticals · Mutations · Action Orchestration)"]
+    BFF["Abeta-dev/sdui-bff (:8085)\nStateful Multi-Vertical Domain BFF\n(7 Verticals · Mutations · Action Orchestration)"]
     LE["Abeta-dev/layout-engine (:8090)\nDynamic SDUI Layout Engine & Visual Studio\n(Rules · Schedules · Slotting · Snapshots)"]
     DB[("PostgreSQL 17 / SQLite WAL")]
 
@@ -22,9 +22,9 @@ flowchart LR
 
 | Responsibility | Owner Repo |
 | :--- | :--- |
-| Typed wire contracts (`16` Wire Atoms, `21` SnippetTypes, `18` ActionTypes, `7` ambient `MotionLoopEffect`s), Compose renderers, offline cache, haptic & platform bridges | `Abeta-dev/kmp` (`github.com/abeta-dev/kmp/bff@v0.3.0`) |
+| Typed wire contracts (`28` Wire Atoms / `30` Compose UI Atoms / `29` `ComposedNodeKind`s, `21` SnippetTypes, `18` ActionTypes, `7` ambient `MotionLoopEffect`s), Compose renderers, offline cache, haptic & platform bridges | `Abeta-dev/kmp` (`github.com/abeta-dev/kmp/bff@v0.5.0`) |
 | Dynamic CMS authoring, multi-tenant targeting rules, UTC schedule windows, slotting, immutable snapshots, rollback, Visual Layout Studio (`/studio`) | `Abeta-dev/layout-engine` |
-| Stateful domain catalogs, search & category filtering, cart/order/booking/swipe/RFQ state transitions, `follow_up_actions` orchestration, and optional Layout Engine composition | `Abeta-dev/sdui-bff` |
+| Stateful domain catalogs, search & category filtering, cart/order/booking/swipe/RFQ/transfer/card-control state transitions, `follow_up_actions` orchestration, and optional Layout Engine composition | `Abeta-dev/sdui-bff` (`v0.3.0`) |
 
 ---
 
@@ -41,7 +41,7 @@ sdui-bff/
 │   ├── handler/                # Gin router, vertical endpoints, OpenAPI 3.1 (/openapi.json, /docs), Brotli/Gzip, ETag, health
 │   ├── infra/
 │   │   └── layoutclient/       # Optional HTTP client for Abeta-dev/layout-engine implementing domain.LayoutEngineClient
-│   └── verticals/              # 6 OCP VerticalModule implementations (fresh, bites, pulse, mart, spark, trade)
+│   └── verticals/              # 7 OCP VerticalModule implementations (fresh, bites, pulse, mart, spark, trade, pay)
 ├── scripts/                    # check_brand_hygiene.sh, verify_all.sh
 ├── docs/                       # architecture.md, verticals-guide.md
 ├── skills/abeta-sdui-bff/      # SKILL.md domain engineering playbook
@@ -121,24 +121,24 @@ sequenceDiagram
 
 ---
 
-## 5. KMP Wire Protocol & Tracking Invariants (`v0.3.0`)
+## 5. KMP Wire Protocol & Tracking Invariants (`v0.5.0`)
 
 1. **Direct Contract Reuse**:
-   - Import `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` (`v0.3.0`) directly rather than duplicating JSON structs.
-   - Supports all **16 Wire Atoms** (incl. `CountdownAtom`), **21 SnippetTypes** (including interactive `swipe_deck`, `search_bar`, `chip_group`, plus Wave 6 `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block`), **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks.
+   - Import `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` (`v0.5.0`) directly rather than duplicating JSON structs.
+   - Supports all **28 Wire Atoms** / **30 Compose UI Atoms** (incl. `CountdownAtom` and the 12 extended production atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`), **21 SnippetTypes** (including interactive `swipe_deck`, `search_bar`, `chip_group`, plus `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block` with **29 `ComposedNodeKind`s**), **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks.
 2. **Envelope Wrapping**:
    - Every `/api/v1/*` response uses `github.com/abeta-dev/go-libs@v0.4.0` `ginmw.Envelope` (`{"success": true, "data": ...}` or structured error details).
 3. **KMP String-Only Tracking Property Rule (Non-Negotiable)**:
    - On the Kotlin Multiplatform client (`abeta-dev/kmp`), `TrackingContract.properties` is typed as `Map<String, String>` under strict `kotlinx.serialization`.
    - Every tracking/analytics property map emitted from `sdui-bff` **must contain string values only** (`map[string]string`). Never encode integers, floats, booleans, or nested objects inside tracking properties (convert with `strconv.Itoa` / `strconv.FormatBool` if needed).
 4. **Action Follow-Up Chaining**:
-   - Mutation endpoints (`/api/v1/fresh/orders/express`, `/api/v1/bites/orders`, `/api/v1/pulse/bookings`, `/api/v1/mart/orders`, `/api/v1/spark/swipe`, `/api/v1/trade/rfq`, `/api/v1/orders/express`, `/api/v1/actions/execute`) return `domain.ActionResult` with `follow_up_actions` (`trigger_feedback`, `show_toast`, `navigate`). The KMP `RemoteApiCallExecutor` dispatches these follow-up actions automatically.
+   - Mutation endpoints (`/api/v1/fresh/orders/express`, `/api/v1/bites/orders`, `/api/v1/pulse/bookings`, `/api/v1/mart/orders`, `/api/v1/spark/swipe`, `/api/v1/trade/rfq`, `/api/v1/pay/transfers`, `/api/v1/pay/cards/controls`, `/api/v1/orders/express`, `/api/v1/actions/execute`) return `domain.ActionResult` with `follow_up_actions` (`trigger_feedback`, `show_toast`, `navigate`, `track_event`). The KMP `RemoteApiCallExecutor` dispatches these follow-up actions automatically.
 
 ---
 
 ## 6. Concurrency, Transport & Security
 
-- **Thread-Safe Vertical State**: Each vertical stores mutable session state (recent orders, active bookings, swipe deck & mutual matches, submitted RFQ records) protected by `sync.RWMutex`. Every test suite runs under `go test -count=1 -race -cover ./...`.
+- **Thread-Safe Vertical State**: Each vertical stores mutable session state (recent orders, active bookings, swipe deck & mutual matches, submitted RFQ records, P2P wallet transfers & smart card controls) protected by `sync.RWMutex`. Every test suite runs under `go test -count=1 -race -cover ./...`.
 - **HTTP Transport**: Supports HTTP/1.1 + `h2c` (HTTP/2 cleartext), negotiated Brotli (`br`) and gzip response compression, and SHA-256 `ETag` / `304 Not Modified` caching.
 - **Security Controls**:
   - Optional HS256 JWT authentication (`JWT_SECRET`) and global request rate limiting (`RATE_LIMIT_RPS`).

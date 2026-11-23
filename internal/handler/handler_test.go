@@ -21,6 +21,7 @@ import (
 	"github.com/abeta-dev/sdui-bff/internal/verticals/bites"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/fresh"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/mart"
+	"github.com/abeta-dev/sdui-bff/internal/verticals/pay"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/pulse"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/spark"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/trade"
@@ -40,10 +41,11 @@ func newTestRouter(layoutURL string, jwtSecret string, rateLimitRPS float64) (*g
 	m := mart.New()
 	s := spark.New()
 	tr := trade.New()
+	py := pay.New()
 
 	lc := layoutclient.NewClient(layoutURL, nil)
 	deps := handler.Dependencies{
-		Composer:     usecase.NewScreenComposer(lc, f, b, p, m, s, tr),
+		Composer:     usecase.NewScreenComposer(lc, f, b, p, m, s, tr, py),
 		Actions:      usecase.NewActionExecutor(),
 		LayoutClient: lc,
 		Fresh:        f,
@@ -52,6 +54,7 @@ func newTestRouter(layoutURL string, jwtSecret string, rateLimitRPS float64) (*g
 		Mart:         m,
 		Spark:        s,
 		Trade:        tr,
+		Pay:          py,
 		JWTSecret:    jwtSecret,
 		RateLimitRPS: rateLimitRPS,
 		Logger:       slog.New(slog.NewJSONHandler(io.Discard, nil)),
@@ -125,15 +128,19 @@ func TestOpsAndDocsEndpoints(t *testing.T) {
 		}
 		rawSpec := wSpec.Body.String()
 		for _, token := range []string{
-			"github.com/abeta-dev/kmp/bff@v0.3.0",
+			"github.com/abeta-dev/kmp/bff@v0.5.0",
+			"28 Wire Atoms",
+			"29 ComposedNodeKinds",
 			"nudge_bar",
 			"marquee_strip",
 			"order_tracker",
 			"composed_block",
 			"free_delivery_threshold_cents",
+			"TransferRequest",
+			"CardControlRequest",
 		} {
 			if !strings.Contains(rawSpec, token) {
-				t.Errorf("OpenAPI spec missing Wave 6 contract token %q", token)
+				t.Errorf("OpenAPI spec missing v0.5.0 contract token %q", token)
 			}
 		}
 		paths, _ := spec["paths"].(map[string]any)
@@ -151,6 +158,8 @@ func TestOpsAndDocsEndpoints(t *testing.T) {
 			"/api/v1/mart/orders",
 			"/api/v1/spark/swipe",
 			"/api/v1/trade/rfq",
+			"/api/v1/pay/transfers",
+			"/api/v1/pay/cards/controls",
 		} {
 			if _, exists := paths[p]; !exists {
 				t.Errorf("expected path %q in OpenAPI spec", p)
@@ -198,7 +207,7 @@ func TestOpsAndDocsEndpoints(t *testing.T) {
 	})
 }
 
-func TestDiscoveryAndAllSixVerticalScreens(t *testing.T) {
+func TestDiscoveryAndAllSevenVerticalScreens(t *testing.T) {
 	t.Parallel()
 	router, _ := newTestRouter("", "", 0)
 
@@ -215,8 +224,8 @@ func TestDiscoveryAndAllSixVerticalScreens(t *testing.T) {
 	if err := json.Unmarshal(wApps.Body.Bytes(), &appsEnv); err != nil {
 		t.Fatalf("unmarshal apps: %v", err)
 	}
-	if !appsEnv.Success || len(appsEnv.Data.Apps) != 6 {
-		t.Fatalf("expected success with 6 apps, got %+v", appsEnv)
+	if !appsEnv.Success || len(appsEnv.Data.Apps) != 7 {
+		t.Fatalf("expected success with 7 apps, got %+v", appsEnv)
 	}
 
 	wScreens := doJSONRequest(router, http.MethodGet, "/api/v1/screens", "", nil)
@@ -232,8 +241,8 @@ func TestDiscoveryAndAllSixVerticalScreens(t *testing.T) {
 	if err := json.Unmarshal(wScreens.Body.Bytes(), &screensEnv); err != nil {
 		t.Fatalf("unmarshal screens: %v", err)
 	}
-	if !screensEnv.Success || len(screensEnv.Data.Screens) < 12 {
-		t.Fatalf("expected >=12 screens, got %d", len(screensEnv.Data.Screens))
+	if !screensEnv.Success || len(screensEnv.Data.Screens) < 17 {
+		t.Fatalf("expected >=17 screens, got %d", len(screensEnv.Data.Screens))
 	}
 
 	screenTests := []struct {
@@ -253,6 +262,10 @@ func TestDiscoveryAndAllSixVerticalScreens(t *testing.T) {
 		{"/api/v1/screens/spark-matches", "spark-matches"},
 		{"/api/v1/screens/trade-home?filter=verified", "trade-home"},
 		{"/api/v1/screens/trade-supplier?id=trd_ecopack", "trade-supplier"},
+		{"/api/v1/screens/pay-home", "pay-home"},
+		{"/api/v1/screens/pay-transfer?filter=maya", "pay-transfer"},
+		{"/api/v1/screens/pay-cards", "pay-cards"},
+		{"/api/v1/screens/pay-receipt?id=PAY-3081", "pay-receipt"},
 	}
 
 	for _, tc := range screenTests {
@@ -367,6 +380,24 @@ func TestAllVerticalMutationsAndSparkMatchPersistence(t *testing.T) {
 	assertOKAction(t, "/api/v1/trade/rfq", `{"supplier_id":"trd_ecopack","product_name":"Kraft Cartons","quantity":500,"company_name":"Northstar Retail","contact_email":"buyer@northstar.example"}`)
 	if w := doJSONRequest(router, http.MethodPost, "/api/v1/trade/rfq", `{"company_name":"","contact_email":"invalid","quantity":0}`, nil); w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 VALIDATION_ERROR for invalid RFQ, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Abeta Pay transfer (valid & invalid 400)
+	payTransferRes := assertOKAction(t, "/api/v1/pay/transfers", `{"recipient":"@maya.chen","amount_usd":125.00,"speed":"instant","funding_source":"checking","pin":"4829"}`)
+	if len(payTransferRes.FollowUpActions) != 3 {
+		t.Fatalf("expected 3 follow_up_actions on Pay transfer, got %+v", payTransferRes.FollowUpActions)
+	}
+	if w := doJSONRequest(router, http.MethodPost, "/api/v1/pay/transfers", `{"recipient":"invalid","amount_usd":-5}`, nil); w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 VALIDATION_ERROR for invalid Pay transfer, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Abeta Pay card controls (valid & invalid 400)
+	payCardsRes := assertOKAction(t, "/api/v1/pay/cards/controls", `{"card_id":"metal_4092","frozen":true,"spend_limit_usd":6000}`)
+	if payCardsRes.Data["state"] != "FROZEN" {
+		t.Fatalf("expected FROZEN card state, got %+v", payCardsRes.Data)
+	}
+	if w := doJSONRequest(router, http.MethodPost, "/api/v1/pay/cards/controls", `{"spend_limit_usd":50}`, nil); w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 VALIDATION_ERROR for out-of-range spend limit, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

@@ -1,6 +1,6 @@
 # Abeta SDUI Domain BFF — Full LLM Reference
 
-> `github.com/abeta-dev/sdui-bff` (`Abeta-dev/sdui-bff`, Apache-2.0) is a standalone **Go 1.26.0** Clean Architecture Backend-for-Frontend (BFF) powering **6 stateful Super-App verticals** over Server-Driven UI (SDUI) `v1` contracts from `github.com/abeta-dev/kmp/bff@v0.3.0` and `github.com/abeta-dev/go-libs@v0.4.0`. Default port: `:8085`.
+> `github.com/abeta-dev/sdui-bff` (`Abeta-dev/sdui-bff`, `v0.3.0`, Apache-2.0) is a standalone **Go 1.26.0** Clean Architecture Backend-for-Frontend (BFF) powering **7 stateful Super-App verticals** (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`, `Abeta Pay`) over Server-Driven UI (SDUI) `v1` contracts from `github.com/abeta-dev/kmp/bff@v0.5.0` (**28 Wire Atoms** / **30 Compose UI Atoms** / **29 ComposedNodeKinds**) and `github.com/abeta-dev/go-libs@v0.4.0`. Default port: `:8085`.
 
 Live self-documentation served directly by the binary:
 - `GET /llms.txt` — `text/plain; charset=utf-8` (`llmstxt.org` index, embedded from repository root `llms.txt`)
@@ -14,14 +14,14 @@ Live self-documentation served directly by the binary:
 
 | Repository | Responsibility | Runtime / Default Port |
 | :--- | :--- | :--- |
-| `Abeta-dev/kmp` | Kotlin Multiplatform + Compose Multiplatform SDUI Client Kit (`v0.3.0` wire contracts: 16 Wire Atoms incl. `CountdownAtom`, 21 canonical SnippetTypes incl. `swipe_deck`/`search_bar`/`chip_group`/`product_card`/`nudge_bar`/`marquee_strip`/`order_tracker`/`composed_block`, 18 ActionTypes, 7 ambient `MotionLoopEffect`s; 18 Compose atoms; `:sample-app` 6-in-1 Showcase; `:storybook` 16 stories; `:watch-companion`) | Android · iOS · macOS · Desktop JVM · WasmJS · watchOS · Wear OS |
+| `Abeta-dev/kmp` | Kotlin Multiplatform + Compose Multiplatform SDUI Client Kit (`v0.5.0` wire contracts: 28 Wire Atoms / 30 Compose UI Atoms / 29 ComposedNodeKinds incl. `CountdownAtom` and 12 extended atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`, 21 canonical SnippetTypes incl. `swipe_deck`/`search_bar`/`chip_group`/`product_card`/`nudge_bar`/`marquee_strip`/`order_tracker`/`composed_block`, 18 ActionTypes, 7 ambient `MotionLoopEffect`s; `:sample-app` 7-in-1 Showcase; `:storybook` 20 stories; `:watch-companion`) | Android · iOS · macOS · Desktop JVM · WasmJS · watchOS · Wear OS |
 | `Abeta-dev/layout-engine` | Multi-tenant Dynamic SDUI Layout Engine & Visual Layout Studio (`/studio`): rule targeting, UTC scheduling, dynamic slotting, immutable snapshots, rollback, fallback | Go service on `:8090` (SQLite WAL or PostgreSQL 17) |
-| `Abeta-dev/sdui-bff` *(this repo)* | Stateful Multi-Vertical Domain BFF: 6 OCP `VerticalModule` implementations, live search/filtering, mutex-protected state transitions, `follow_up_actions` orchestration, optional Layout Engine hydration | Go 1.26.0 service on `:8085` (zero-dependency standalone or integrated via `LAYOUT_ENGINE_URL`) |
+| `Abeta-dev/sdui-bff` *(this repo)* | Stateful Multi-Vertical Domain BFF (`v0.3.0`): 7 OCP `VerticalModule` implementations, live search/filtering, mutex-protected state transitions, `follow_up_actions` orchestration, optional Layout Engine hydration | Go 1.26.0 service on `:8085` (zero-dependency standalone or integrated via `LAYOUT_ENGINE_URL`) |
 
 ```text
 +-----------------------------------+        v1 SDUI JSON (ginmw.Envelope)        +----------------------------------------+
 | Abeta-dev/kmp (:sample-app / SDK) | <=========================================> | Abeta-dev/sdui-bff (:8085)             |
-| --bff-url=http://localhost:8085   |  HTTP/2 & h2c · Brotli/Gzip · SHA-256 ETag  | 6 Stateful Verticals + ActionExecutor  |
+| --bff-url=http://localhost:8085   |  HTTP/2 & h2c · Brotli/Gzip · SHA-256 ETag  | 7 Stateful Verticals + ActionExecutor  |
 +-----------------------------------+                                             +-------------------+--------------------+
                                                                                                       | Optional (LAYOUT_ENGINE_URL)
                                                                                                       | GET /api/v1/screens/:slug
@@ -58,13 +58,14 @@ sdui-bff/
 │   ├── usecase/                 # DefaultScreenComposer (hydration + fallback) & DefaultActionExecutor
 │   ├── handler/                 # Gin router, middleware (Brotli/Gzip, ETag), OpenAPI 3.1, /llms.txt, vertical routes
 │   ├── infra/layoutclient/      # Optional HTTP client for Abeta-dev/layout-engine
-│   └── verticals/               # 6 OCP VerticalModule implementations:
+│   └── verticals/               # 7 OCP VerticalModule implementations:
 │       ├── fresh/               # Abeta Fresh  (abeta-fresh)
 │       ├── bites/               # Abeta Bites  (abeta-bites)
 │       ├── pulse/               # Abeta Pulse  (abeta-pulse)
 │       ├── mart/                # Abeta Mart   (abeta-mart)
 │       ├── spark/               # Abeta Spark  (abeta-spark)
-│       └── trade/               # Abeta Trade  (abeta-trade)
+│       ├── trade/               # Abeta Trade  (abeta-trade)
+│       └── pay/                 # Abeta Pay    (abeta-pay)
 ├── docs/                        # architecture.md, verticals-guide.md, assets/screenshots/
 ├── scripts/                     # check_brand_hygiene.sh, verify_all.sh
 ├── skills/abeta-sdui-bff/       # SKILL.md domain engineering playbook
@@ -137,8 +138,8 @@ type ActionExecutor interface {
 - Forwarded targeting headers: `X-Tenant-ID` (explicit header or owning vertical's `TenantID`), `X-Platform`, `X-City` (`?city=` query overrides `X-City`), `X-User-Segment`, `X-Window-Class`.
 - Safety bounds: `5s` screen fetch timeout, `1.5s` `/healthz` readiness check timeout, `4 MiB` (`4 << 20`) `io.LimitReader` response body cap.
 
-### Non-Negotiable KMP Wire Invariants (`github.com/abeta-dev/kmp/bff@v0.3.0`)
-1. **Direct v1 Contract Consumption**: Always construct screens and triggers using `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` (`16` Wire Atoms incl. `CountdownAtom`, `21` canonical SnippetTypes incl. `nudge_bar`/`marquee_strip`/`order_tracker`/`composed_block` Atomic Snippet Molding with 17 `ComposedNode` kinds, `18` ActionTypes, `7` ambient `MotionLoopEffect`s, and `FloatingCartSpec` Free-Delivery threshold nudges)—never duplicate wire structs.
+### Non-Negotiable KMP Wire Invariants (`github.com/abeta-dev/kmp/bff@v0.5.0`)
+1. **Direct v1 Contract Consumption**: Always construct screens and triggers using `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` (**28 Wire Atoms** / **30 Compose UI Atoms** incl. `CountdownAtom` and 12 extended production atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`, **21 canonical SnippetTypes** incl. `nudge_bar`/`marquee_strip`/`order_tracker`/`composed_block` Atomic Snippet Molding with **29 ComposedNodeKinds**, **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and `FloatingCartSpec` Free-Delivery threshold nudges)—never duplicate wire structs.
 2. **String-Only `TrackingContract.properties` Rule**: On `Abeta-dev/kmp`, `TrackingContract.properties` deserializes strictly as `Map<String, String>` under `kotlinx.serialization`. Every analytics/tracking property map emitted by any vertical or action handler MUST contain **string values only** (convert ints/bools via `strconv.Itoa` / `strconv.FormatBool`). `DefaultActionExecutor` enforces this via `stringifyProperties`.
 3. **Structured `follow_up_actions`**: Mutation responses return `domain.ActionResult{Status, Message, FollowUpActions, Data}` where `follow_up_actions` carries typed `actions.ActionTrigger` objects (`trigger_feedback`, `show_toast`, `navigate`, `track_event`) automatically dispatched by KMP's `RemoteApiCallExecutor`.
 
@@ -153,8 +154,8 @@ type ActionExecutor interface {
 - `GET /llms-full.txt` — Embedded full LLM reference (`text/plain; charset=utf-8`).
 - `GET /openapi.json` — OpenAPI 3.1.0 specification (ETag-enabled).
 - `GET /docs` — Interactive Scalar API docs UI.
-- `GET /api/v1/apps` — Returns `{"apps": [AppDescriptor...]}` for all 6 registered verticals.
-- `GET /api/v1/screens` — Returns `{"screens": [ScreenSummary...]}` for all 13 discoverable screen routes.
+- `GET /api/v1/apps` — Returns `{"apps": [AppDescriptor...]}` for all 7 registered verticals.
+- `GET /api/v1/screens` — Returns `{"screens": [ScreenSummary...]}` for all 17 discoverable screen routes.
 - `GET /api/v1/screens/:screenId` — Renders a `v1` `PageResponse`.
   - Query params: `?q=` (search), `?filter=` (category/facet), `?city=` (city override), `?id=` (detail entity ID), `?cursor=` (pagination), plus arbitrary extra params forwarded in `ScreenRequest.Extra`.
   - Headers: `X-Tenant-ID`, `X-Platform`, `X-City`, `X-User-Segment`, `X-Window-Class`, `If-None-Match`.
@@ -167,12 +168,12 @@ type ActionExecutor interface {
 
 ---
 
-### The 6 Stateful Super-App Verticals
+### The 7 Stateful Super-App Verticals
 
 #### 1. Abeta Fresh — Quick Commerce (`abeta-fresh`, theme `emerald`)
 - **Screens**: `fresh-home`, `store-home` (compatibility alias)
 - **Filters (`?filter=`)**: `all`, `produce`, `dairy`, `bakery`, `snacks`, `drinks`; supports `?q=` search & `?city=` (default `Bengaluru`)
-- **Key Snippets**: `marquee_strip` express perks ticker (`"8-min dispatch"`, `"Free delivery over $15"`, `"Zero surge pricing"`), `search_bar`, `chip_group`, urgency `nudge_bar` (`fresh_flash_nudge` with `420s` `CountdownAtom` + `MotionLoopWiggle` badge), promo `banner`, responsive `product_card` `grid` with `StepperAtom` selectors, server-molded `composed_block` (`snippets.MoldLoyaltyStampRecipe` stateful punch-card), sticky `FloatingCartSpec` with Free-Delivery threshold (`1500` cents / `$15`, `NudgePrefix: "Add"`, `UnlockedLabel: "FREE 8-min delivery unlocked!"`), empty state with reset action
+- **Key Snippets**: `marquee_strip` express perks ticker (`"8-min dispatch"`, `"Free delivery over $15"`, `"Zero surge pricing"`), `search_bar`, `chip_group`, urgency `nudge_bar` (`fresh_flash_nudge` with `420s` `CountdownAtom` + `MotionLoopWiggle` badge), promo `banner`, responsive `product_card` `grid` with `StepperAtom` selectors, server-molded `composed_block`s (`snippets.MoldLoyaltyStampRecipe` stateful punch-card + `express_delivery_summary` with `Select` slot picker, `Badge`, and `KeyValueRow` savings), sticky `FloatingCartSpec` with Free-Delivery threshold (`1500` cents / `$15`, `NudgePrefix: "Add"`, `UnlockedLabel: "FREE 8-min delivery unlocked!"`), empty state with reset action
 - **Mutations**: `POST /api/v1/fresh/orders/express` and `POST /api/v1/orders/express`
   - Payload (`ExpressOrderRequest`, optional body): `{"vertical":"abeta-fresh","items":{"sku":2},"item_count":3,"total_usd":14.50,"address":"Indiranagar, Bengaluru","coupon":"...","payment":"...","notes":"..."}` (negative `item_count` or item qty -> `400`)
   - State & `follow_up_actions`: generates `FRS-xxxx`, increments `orderCount` displayed in banner and loyalty stamp card, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`).
@@ -180,7 +181,7 @@ type ActionExecutor interface {
 #### 2. Abeta Bites — Food Delivery (`abeta-bites`, theme `amber`)
 - **Screens**: `bites-home`, `bites-restaurant` (`?id=verde-bowl`, etc.), `bites-order-track`
 - **Filters (`?filter=`)**: `all`, `veg` (Pure Veg), `top_rated` (4.0+), `fast` (Under 25m), `biryani`, `pizza`; supports `?q=` & `?city=`
-- **Key Snippets**: `marquee_strip` hot meal offers ticker, `search_bar`, `chip_group`, curated collections `carousel`, restaurant cards, interactive menu `product_card` steppers, floating meal cart with Free-Delivery threshold (`1800` cents / `$18`, `UnlockedLabel: "FREE Priority Delivery unlocked!"`), animated 4-step `order_tracker` (`snippets.NewOrderTrackerSnippet` showing live `#BTS-xxxx` code, `660s` `CountdownAtom` ETA, 4 stages: `Order Confirmed [completed]`, `Kitchen Preparing [completed]`, `Rider En Route [active]`, `Delivered`, rider details, and Call Rider / Back to Restaurants CTAs)
+- **Key Snippets**: `marquee_strip` hot meal offers ticker, `search_bar`, `chip_group`, curated collections `carousel`, restaurant cards, molded `restaurant_highlights_card` (`Rating`, `Price`, `RadioGroup` delivery speed, `KeyValueRow` savings), interactive menu `product_card` steppers, floating meal cart with Free-Delivery threshold (`1800` cents / `$18`, `UnlockedLabel: "FREE Priority Delivery unlocked!"`), animated 4-step `order_tracker` (`#BTS-xxxx`, `660s` ETA countdown)
 - **Mutation**: `POST /api/v1/bites/orders`
   - Payload (`ExpressOrderRequest`, optional body): `{"items":{...},"item_count":2,"total_usd":22.00,"address":"Koramangala, Bengaluru"}`
   - State & `follow_up_actions`: generates `BTS-xxxx`, persists live order progress & rider assignment for `bites-order-track`, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`) + `navigate` (`route: "bites-order-track"`).
@@ -188,7 +189,7 @@ type ActionExecutor interface {
 #### 3. Abeta Pulse — Events & Ticketing (`abeta-pulse`, theme `indigo`)
 - **Screens**: `pulse-home`, `pulse-event-detail` (`?id=evt-synth-symphony`, etc.)
 - **Filters (`?filter=`)**: `all`, `movies`, `concerts`, `comedy`, `dining`; supports `?q=` & `?city=`
-- **Key Snippets**: `search_bar`, `chip_group`, urgency `nudge_bar` (`pulse_early_bird_nudge` with `540s` `CountdownAtom` `"Early-bird seats closing in"` + `MotionLoopWiggle` badge), spotlight `banner`, responsive event grid, venue schedule, seat-tier reservation triggers, native OS `share` action
+- **Key Snippets**: `search_bar`, `chip_group`, urgency `nudge_bar` (`pulse_early_bird_nudge` with `540s` `CountdownAtom` `"Early-bird seats closing in"` + `MotionLoopWiggle` badge), spotlight `banner`, responsive event grid, molded `event_epass_preview` (`AlertBanner` early-bird notice + `Rating` summary + `QrCode` mobile e-pass preview), venue schedule, seat-tier reservation triggers, native OS `share` action
 - **Mutation**: `POST /api/v1/pulse/bookings`
   - Payload (`BookingRequest`): `{"event_id":"evt-synth-symphony","event_name":"...","seat_tier":"VIP","quantity":2,"city":"Bengaluru"}` (`tier` alias accepted; `quantity == 0` defaults to `2`; `quantity < 0` -> `400`)
   - State & `follow_up_actions`: generates `PLS-xxxx`, persists booking record, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`).
@@ -196,7 +197,7 @@ type ActionExecutor interface {
 #### 4. Abeta Mart — Multi-Category Marketplace (`abeta-mart`, theme `indigo`)
 - **Screens**: `mart-home`, `mart-product-detail` (`?id=mrt_anc_buds`, etc.)
 - **Filters (`?filter=`)**: `all`, `electronics`, `audio`, `home`, `fashion`; supports `?q=` & `?city=`
-- **Key Snippets**: `marquee_strip` marketplace deals ticker, `search_bar`, `chip_group`, server-molded `composed_block` Flash Deal (`snippets.MoldFlashDealRecipe` with live countdown & rolling odometer price), lightning deals `carousel`, responsive `product_card` `grid`, sticky `FloatingCartSpec` with Free-Delivery threshold (`2500` cents / `$25`), technical specs `accordion`, reviews, instant Buy Now & native `share`
+- **Key Snippets**: `marquee_strip` marketplace deals ticker, `search_bar`, `chip_group`, server-molded `composed_block` Flash Deal (`snippets.MoldFlashDealRecipe` with live countdown & rolling odometer price) + molded `price_rating_highlight` (`Price` MRP/discount pill + `Rating` + `Chip` perks + `KeyValueRow` warranty), lightning deals `carousel`, responsive `product_card` `grid`, sticky `FloatingCartSpec` with Free-Delivery threshold (`2500` cents / `$25`), technical specs `accordion`, reviews, instant Buy Now & native `share`
 - **Mutation**: `POST /api/v1/mart/orders`
   - Payload (`ExpressOrderRequest`, optional body): `{"items":{...},"item_count":1,"total_usd":129.00,"address":"HSR Layout, Bengaluru"}`
   - State & `follow_up_actions`: generates `MRT-xxxx`, tracks marketplace order count, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`).
@@ -212,10 +213,17 @@ type ActionExecutor interface {
 #### 6. Abeta Trade — B2B Wholesale & RFQ (`abeta-trade`, theme `emerald`)
 - **Screens**: `trade-home`, `trade-supplier` (`?id=trd_ecopack`, etc.)
 - **Filters (`?filter=`)**: `all`, `verified` (GST Verified), `electronics`, `packaging`, `textiles`; supports `?q=` & `?city=`
-- **Key Snippets**: `search_bar`, `chip_group`, server-molded `composed_block` MOQ Bulk Savings card (`snippets.CardNode` + `snippets.VStack` + `snippets.HStack` + `snippets.RollingCounterNode`), Trade Assurance `banner`, verified supplier cards with MOQ pricing previews, TrustScore metrics, validated `form_v1` RFQ submission form, recent RFQs list
+- **Key Snippets**: `search_bar`, `chip_group`, server-molded `composed_block` MOQ Bulk Savings card (`CardNode` + `VStack` + `HStack` + `RollingCounterNode` + `StatTileNode` telemetry), landed-cost `composed_block` (`StatTile` + `KeyValueRow` breakdown), Trade Assurance `banner`, verified supplier cards with MOQ pricing previews, TrustScore metrics, validated `form_v1` RFQ submission form, recent RFQs list
 - **Mutation**: `POST /api/v1/trade/rfq`
   - Payload (`RFQRequest`): `{"supplier_id":"trd_ecopack","product_name":"Kraft Cartons","quantity":500,"company_name":"Northstar Retail","contact_email":"buyer@northstar.example","delivery_city":"Bengaluru","notes":"..."}` (`company` and `email` aliases supported; requires non-empty `company_name`, valid `contact_email` containing `@`, and `quantity > 0` else `400`)
   - State & `follow_up_actions`: generates `RFQ-xxxx`, persists `domain.RFQRecord` shown on `trade-supplier`, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`).
+
+#### 7. Abeta Pay — Fintech Wallet & Smart Cards (`abeta-pay`, theme `indigo`)
+- **Screens**: `pay-home`, `pay-transfer` (`?filter=maya|arjun|elena|noah`), `pay-cards`, `pay-receipt` (`?id=PAY-3081`, etc.)
+- **Key Snippets**: Wallet & cashback `StatTile`s + `Badge` + `AlertBanner`, perks `marquee_strip`, live `#PAY-3081` 4-stage `order_tracker`, molded scan-to-pay `QrCode` + quick-pay `Chip` card, searchable instant P2P contacts, molded `transfer_speed_funding_pin` (`SegmentedControl` + `RadioGroup` + masked 4-digit `OtpInput` + `KeyValueRow` `$0.00` fee summary), `form_v1` transfer & smart metal card controls (switches + spend limit slider), molded `card_security_status` (`Badge` + `AlertBanner` + `KeyValueRow`), molded `pay_itemized_receipt` (`AlertBanner` + `KeyValueRow` breakdown + verification `QrCode` + OS `share` action)
+- **Mutations**:
+  - `POST /api/v1/pay/transfers`: Validates `domain.TransferRequest`, records `PAY-xxxx` transfer, credits 5% cashback, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`) + `navigate` (`pay-receipt?id=PAY-xxxx`).
+  - `POST /api/v1/pay/cards/controls`: Validates `domain.CardControlRequest`, updates card freeze/FX/contactless/spend-limit state, emits `trigger_feedback` (`haptic_tick`) + `show_toast` + string-only `track_event`.
 
 ---
 
@@ -250,7 +258,7 @@ LAYOUT_ENGINE_URL=http://localhost:8090 go run ./cmd/sdui-bff
 docker compose up --build
 # OpenAPI/Scalar docs: http://localhost:8085/docs | Visual Layout Studio: http://localhost:8090/studio
 
-# 4. Connect Abeta-dev/kmp Compose Multiplatform 6-in-1 Showcase Client
+# 4. Connect Abeta-dev/kmp Compose Multiplatform 7-in-1 Showcase Client
 (cd ../kmp/kmp && ./gradlew :sample-app:run --args="--bff-url=http://localhost:8085")
 (cd ../kmp/kmp && ./gradlew :sample-app:run --args="--headless --bff-url=http://localhost:8085")
 

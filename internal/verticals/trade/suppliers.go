@@ -68,6 +68,22 @@ func buildBulkSavingsComposedBlock(suppliers []supplierProfile) snippets.Snippet
 		FillMaxWidth: atoms.BoolPtr(true),
 	}
 
+	savingsStat := atoms.NewStatTile("trade_stat_savings", "Max Bulk Savings", "35% OFF")
+	savingsStat.DeltaLabel = "+12% vs retail"
+	savingsStat.DeltaPositive = atoms.BoolPtr(true)
+	savingsStat.Caption = "2,000+ unit factory tier"
+
+	gstCount := 0
+	for _, s := range suppliers {
+		if s.GSTVerified {
+			gstCount++
+		}
+	}
+	factoriesStat := atoms.NewStatTile("trade_stat_gst", "GST-Verified Mills", fmt.Sprintf("%d / %d", gstCount, len(suppliers)))
+	factoriesStat.DeltaLabel = "Escrow Active"
+	factoriesStat.DeltaPositive = atoms.BoolPtr(true)
+	factoriesStat.Caption = "2-hour RFQ turnaround"
+
 	root := snippets.CardNode(
 		blockLayout,
 		snippets.VStack(
@@ -91,6 +107,11 @@ func buildBulkSavingsComposedBlock(suppliers []supplierProfile) snippets.Snippet
 					theming.ColorTextSecondary,
 				)),
 			).WithAlignment("", snippets.ComposedAlignCenter),
+			snippets.HStack(
+				theming.SpacingMD.Dp(),
+				snippets.StatTileNode(savingsStat).WithNodeID("trade_savings_stat_node").WithWeight(1),
+				snippets.StatTileNode(factoriesStat).WithNodeID("trade_factories_stat_node").WithWeight(1),
+			),
 			snippets.ProgressNode(atoms.ProgressAtom{
 				Kind:     "linear",
 				Progress: atoms.Float64Ptr(0.82),
@@ -119,6 +140,72 @@ func buildBulkSavingsComposedBlock(suppliers []supplierProfile) snippets.Snippet
 			"vertical":    verticalID,
 			"recipe":      "moq_bulk_savings_card",
 			"supplier_id": featured.ID,
+		}).
+		Build()
+}
+
+func buildLandedCostComposedBlock(s supplierProfile, deliveryCity string) snippets.SnippetEnvelope {
+	midTier := s.Tiers[0]
+	if len(s.Tiers) > 1 {
+		midTier = s.Tiers[1]
+	}
+	bestTier := s.Tiers[len(s.Tiers)-1]
+
+	rateStat := atoms.NewStatTile("trade_stat_best_rate", "Best Bulk Rate", bestTier.UnitPrice)
+	rateStat.DeltaLabel = bestTier.SavingsTag
+	rateStat.DeltaPositive = atoms.BoolPtr(true)
+	rateStat.Caption = bestTier.Label
+
+	leadStat := atoms.NewStatTile("trade_stat_lead_time", "Factory Lead Time", midTier.LeadTime)
+	leadStat.DeltaLabel = "Reply " + s.ResponseTime
+	leadStat.DeltaPositive = atoms.BoolPtr(true)
+	leadStat.Caption = "Dispatch from " + s.City
+
+	exFactoryRow := atoms.NewKeyValueRow("trade_kv_ex_factory", "Ex-Factory Rate ("+midTier.Label+")", midTier.UnitPrice)
+	exFactoryRow.ShowDivider = true
+
+	gstRow := atoms.NewKeyValueRow("trade_kv_gst_credit", "GST Input Tax Credit", "18% Claimable")
+	gstRow.ValueColor = atoms.ColorRef(theming.ColorSuccess)
+	gstRow.ShowDivider = true
+
+	escrowRow := atoms.NewKeyValueRow("trade_kv_escrow", "Trade Assurance Escrow Fee", "$0.00 (Included)")
+	escrowRow.ValueColor = atoms.ColorRef(theming.ColorSuccess)
+	escrowRow.ShowDivider = true
+
+	hubRow := atoms.NewKeyValueRow("trade_kv_delivery_hub", "Estimated Landed Freight", deliveryCity+" Direct Hub")
+	hubRow.Emphasized = true
+
+	root := snippets.CardNode(
+		cardLayout(),
+		snippets.VStack(
+			theming.SpacingMD.Dp(),
+			snippets.TextNode(atoms.NewText("Landed-Cost & Bulk Telemetry", theming.TypographyTitleMedium, theming.ColorTextPrimary)),
+			snippets.HStack(
+				theming.SpacingMD.Dp(),
+				snippets.StatTileNode(rateStat).WithNodeID("trade_rate_stat_node").WithWeight(1),
+				snippets.StatTileNode(leadStat).WithNodeID("trade_lead_stat_node").WithWeight(1),
+			),
+			snippets.DividerNode(atoms.DividerAtom{
+				ThicknessDp: atoms.Float64Ptr(1),
+				Color:       atoms.ColorRef(theming.ColorDivider),
+			}),
+			snippets.KeyValueRowNode(exFactoryRow),
+			snippets.KeyValueRowNode(gstRow),
+			snippets.KeyValueRowNode(escrowRow),
+			snippets.KeyValueRowNode(hubRow),
+		),
+	).WithNodeID("trade_landed_cost_root_" + s.ID)
+
+	return snippets.NewComposedBlockSnippet("trade_landed_cost_block", "trade_landed_cost_"+s.ID, root).
+		WithRecipeName("landed_cost_breakdown").
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionFadeIn,
+			DurationToken: atoms.MotionDurationNormal,
+		}).
+		WithTracking("composed_recipe_viewed", map[string]any{
+			"vertical":    verticalID,
+			"recipe":      "landed_cost_breakdown",
+			"supplier_id": s.ID,
 		}).
 		Build()
 }

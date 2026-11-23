@@ -24,6 +24,7 @@
 /internal/verticals/mart/  @Abeta-dev/platform-engineers  # Abeta Mart (Marketplace)
 /internal/verticals/spark/ @Abeta-dev/platform-engineers  # Abeta Spark (Swipe Discovery)
 /internal/verticals/trade/ @Abeta-dev/platform-engineers  # Abeta Trade (B2B Wholesale & RFQ)
+/internal/verticals/pay/   @Abeta-dev/platform-engineers  # Abeta Pay (Fintech Wallet & Smart Cards)
 
 # --- Containers, CI/CD, Scripts & Security ---
 /.github/                  @Abeta-dev/platform-engineers  # Agent: agents/bff-engineer.md

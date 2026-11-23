@@ -84,8 +84,11 @@ func TestTradeHomeFilteringAndSearch(t *testing.T) {
 				t.Fatalf("unexpected trade composed_block: %+v", cb)
 			}
 			rawCB, _ := json.Marshal(cb)
-			if !strings.Contains(string(rawCB), snippets.ComposedNodeRollingCounter) || !strings.Contains(string(rawCB), snippets.ComposedNodeColumn) || !strings.Contains(string(rawCB), snippets.ComposedNodeRow) {
-				t.Fatalf("expected CardNode + VStack + HStack + RollingCounterNode in trade composed_block: %s", string(rawCB))
+			if !strings.Contains(string(rawCB), snippets.ComposedNodeRollingCounter) ||
+				!strings.Contains(string(rawCB), snippets.ComposedNodeStatTile) ||
+				!strings.Contains(string(rawCB), snippets.ComposedNodeColumn) ||
+				!strings.Contains(string(rawCB), snippets.ComposedNodeRow) {
+				t.Fatalf("expected CardNode + VStack + HStack + RollingCounterNode + StatTileNode in trade composed_block: %s", string(rawCB))
 			}
 		case snippets.SnippetTypeBanner:
 			foundBanner = true
@@ -155,7 +158,7 @@ func TestSupplierMOQPageAndRFQValidationAndSubmission(t *testing.T) {
 		t.Fatalf("unexpected supplier page title: %q", supPage.Title)
 	}
 
-	var foundMetric, foundForm bool
+	var foundMetric, foundLandedCost, foundForm bool
 	tierCards := 0
 	for _, env := range supPage.Snippets {
 		switch env.SnippetType {
@@ -163,6 +166,20 @@ func TestSupplierMOQPageAndRFQValidationAndSubmission(t *testing.T) {
 			foundMetric = true
 		case snippets.SnippetTypeCard:
 			tierCards++
+		case snippets.SnippetTypeComposedBlock:
+			cb, decErr := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](env)
+			if decErr != nil {
+				t.Fatalf("decode trade-supplier composed_block: %v", decErr)
+			}
+			if cb.RecipeName == "landed_cost_breakdown" {
+				foundLandedCost = true
+				rawCB, _ := json.Marshal(cb)
+				for _, wantKind := range []string{snippets.ComposedNodeStatTile, snippets.ComposedNodeKeyValueRow} {
+					if !strings.Contains(string(rawCB), `"`+wantKind+`"`) {
+						t.Errorf("landed_cost_breakdown missing composed node kind %q", wantKind)
+					}
+				}
+			}
 		case snippets.SnippetTypeForm:
 			foundForm = true
 			form, decErr := snippets.DecodeSnippetData[snippets.FormSnippetData](env)
@@ -184,8 +201,8 @@ func TestSupplierMOQPageAndRFQValidationAndSubmission(t *testing.T) {
 			}
 		}
 	}
-	if !foundMetric || !foundForm || tierCards != 3 {
-		t.Fatalf("unexpected supplier layout: metric=%v form=%v tierCards=%d", foundMetric, foundForm, tierCards)
+	if !foundMetric || !foundLandedCost || !foundForm || tierCards != 3 {
+		t.Fatalf("unexpected supplier layout: metric=%v landedCost=%v form=%v tierCards=%d", foundMetric, foundLandedCost, foundForm, tierCards)
 	}
 
 	// Validation error cases.

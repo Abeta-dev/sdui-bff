@@ -1,19 +1,20 @@
-# Verticals Guide — 6 Stateful Super-App Modules
+# Verticals Guide — 7 Stateful Super-App Modules
 
-`Abeta-dev/sdui-bff` hosts **6 stateful vertical applications** implemented as Open/Closed (`OCP`) `domain.VerticalModule` packages under `internal/verticals/`. Every vertical uses `github.com/abeta-dev/kmp/bff@v0.3.0` contracts — all **21 canonical SDUI snippet types** (including `search_bar`, `chip_group`, `swipe_deck`, `product_card`, `carousel`, `grid`, `tabs`, `accordion`, `form_v1`, plus Wave 6 `nudge_bar`, `marquee_strip`, animated 4-step `order_tracker`, and server-molded `composed_block` recipes), **16 Wire Atoms** (incl. `CountdownAtom`), **7 ambient `MotionLoopEffect`s**, Free-Delivery threshold `FloatingCartSpec` docks, and rich `follow_up_actions` for `Abeta-dev/kmp`.
+`Abeta-dev/sdui-bff` (`v0.3.0`) hosts **7 stateful vertical applications** implemented as Open/Closed (`OCP`) `domain.VerticalModule` packages under `internal/verticals/`. Every vertical uses `github.com/abeta-dev/kmp/bff@v0.5.0` contracts — all **21 canonical SDUI snippet types** (including `search_bar`, `chip_group`, `swipe_deck`, `product_card`, `carousel`, `grid`, `tabs`, `accordion`, `form_v1`, plus `nudge_bar`, `marquee_strip`, animated 4-step `order_tracker`, and server-molded `composed_block` with **29 `ComposedNodeKind`s**), **28 Wire Atoms / 30 Compose UI Atoms** (incl. `CountdownAtom` & the 12 extended atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`), **7 ambient `MotionLoopEffect`s**, Free-Delivery threshold `FloatingCartSpec` docks, and rich `follow_up_actions` for `Abeta-dev/kmp`.
 
 ---
 
 ## 1. Vertical Catalog Summary
 
-| Vertical | Package | Tenant ID | Theme Preset | Screen IDs | Wave 6 Snippets & Nudges | Mutation Endpoint(s) |
+| Vertical | Package | Tenant ID | Theme Preset | Screen IDs | v0.5.0 Molded Atoms & Snippets | Mutation Endpoint(s) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Abeta Fresh** | `internal/verticals/fresh` | `abeta-fresh` | `EMERALD` | `fresh-home`, `store-home` | `marquee_strip`, `nudge_bar` (`420s` countdown + `wiggle`), `composed_block` (`MoldLoyaltyStampRecipe`), `$15` Free-Delivery cart dock | `POST /api/v1/fresh/orders/express`<br>`POST /api/v1/orders/express` |
-| **Abeta Bites** | `internal/verticals/bites` | `abeta-bites` | `AMBER` | `bites-home`, `bites-restaurant`, `bites-order-track` | `marquee_strip`, `$18` Free Priority Delivery cart dock, animated 4-step `order_tracker` (`#BTS-xxxx`, `660s` ETA countdown) | `POST /api/v1/bites/orders` |
-| **Abeta Pulse** | `internal/verticals/pulse` | `abeta-pulse` | `INDIGO` | `pulse-home`, `pulse-event-detail` | Early-bird urgency `nudge_bar` (`540s` countdown + `wiggle`) | `POST /api/v1/pulse/bookings` |
-| **Abeta Mart** | `internal/verticals/mart` | `abeta-mart` | `INDIGO` | `mart-home`, `mart-product-detail` | `marquee_strip`, `composed_block` (`MoldFlashDealRecipe`), `$25` Free-Delivery cart dock | `POST /api/v1/mart/orders` |
-| **Abeta Spark** | `internal/verticals/spark` | `abeta-spark` | `AMBER` | `spark-deck`, `spark-matches` | Prime Boost `nudge_bar` (`heartbeat` badge) | `POST /api/v1/spark/swipe` |
-| **Abeta Trade** | `internal/verticals/trade` | `abeta-trade` | `EMERALD` | `trade-home`, `trade-supplier` | MOQ Bulk Savings `composed_block` (`CardNode` + `VStack` + `HStack` + `RollingCounterNode`) | `POST /api/v1/trade/rfq` |
+| **Abeta Fresh** | `internal/verticals/fresh` | `abeta-fresh` | `EMERALD` | `fresh-home`, `store-home` | `marquee_strip`, `nudge_bar` (`420s` countdown), `MoldLoyaltyStampRecipe`, molded `Select` delivery slot + `KeyValueRow` savings + `Badge`, `$15` cart dock | `POST /api/v1/fresh/orders/express`<br>`POST /api/v1/orders/express` |
+| **Abeta Bites** | `internal/verticals/bites` | `abeta-bites` | `AMBER` | `bites-home`, `bites-restaurant`, `bites-order-track` | `marquee_strip`, molded `Rating` + `Price` + `RadioGroup` speed + `KeyValueRow`, `$18` cart dock, animated 4-step `order_tracker` (`#BTS-xxxx`) | `POST /api/v1/bites/orders` |
+| **Abeta Pulse** | `internal/verticals/pulse` | `abeta-pulse` | `INDIGO` | `pulse-home`, `pulse-event-detail` | Early-bird `nudge_bar` (`540s` countdown), molded `AlertBanner` + `Rating` + `QrCode` mobile e-pass preview | `POST /api/v1/pulse/bookings` |
+| **Abeta Mart** | `internal/verticals/mart` | `abeta-mart` | `INDIGO` | `mart-home`, `mart-product-detail` | `marquee_strip`, `MoldFlashDealRecipe`, molded `Price` (MRP + discount pill) + `Rating` + `Chip` + `KeyValueRow`, `$25` cart dock | `POST /api/v1/mart/orders` |
+| **Abeta Spark** | `internal/verticals/spark` | `abeta-spark` | `AMBER` | `spark-deck`, `spark-matches` | Prime Boost `nudge_bar` (`heartbeat` badge), interactive `swipe_deck` | `POST /api/v1/spark/swipe` |
+| **Abeta Trade** | `internal/verticals/trade` | `abeta-trade` | `EMERALD` | `trade-home`, `trade-supplier` | Molded MOQ Bulk Savings (`RollingCounter` + `StatTile` telemetry), landed-cost `StatTile` + `KeyValueRow` breakdown | `POST /api/v1/trade/rfq` |
+| **Abeta Pay** | `internal/verticals/pay` | `abeta-pay` | `INDIGO` | `pay-home`, `pay-transfer`, `pay-cards`, `pay-receipt` | Wallet `StatTile`s + `AlertBanner` + `Badge`, `MarqueeStrip`, live `#PAY-3081` `OrderTracker`, scan-to-pay `QrCode` + `Chip`, `SegmentedControl` + `RadioGroup` + masked `OtpInput` + `KeyValueRow` transfer flow, card controls, itemized receipt + OS `share` | `POST /api/v1/pay/transfers`<br>`POST /api/v1/pay/cards/controls` |
 
 ---
 
@@ -109,11 +110,33 @@
     -d '{"supplier_id":"trd_ecopack","product_name":"Heavy-Duty 5-Ply Export Cartons","quantity":500,"company_name":"Northstar Retail","contact_email":"procurement@northstar.example"}'
   ```
 
+### 2.7 Abeta Pay — Fintech Wallet & Smart Cards (`abeta-pay`)
+- **Screens**:
+  - `pay-home`: Wallet & Cashback `StatTile` telemetry + `Badge` + `AlertBanner`, zero-fee perks `marquee_strip`, live `#PAY-3081` 4-stage `order_tracker`, molded scan-to-pay `QrCode` + quick-pay `Chip` card, and searchable instant P2P contacts (`@maya.chen`, `@arjun.rao`, `@elena.m`, `@noah.park`).
+  - `pay-transfer`: Molded `composed_block` featuring `SegmentedControl` (Instant / Scheduled / AutoPay), `RadioGroup` (Checking / Cashback Wallet / Reserve), masked 4-digit `OtpInput` Transaction PIN, `KeyValueRow` `$0.00` fee & `5%` cashback breakdown, validated `form_v1`, and OS Biometric Auth row.
+  - `pay-cards`: Smart metal virtual card (`•••• 4092`) controls with switches (Freeze, International FX, Contactless), spend limit slider (`$500`–`$15,000`), molded `Badge` status + `AlertBanner` security shield + `KeyValueRow` cap summary.
+  - `pay-receipt`: Live 4-stage `order_tracker`, molded `composed_block` with settled `AlertBanner`, itemized `KeyValueRow` receipt (`#PAY-3081`, recipient, settlement rail, `$0.00` fee, `+$6.25` 5% cashback), verification `QrCode`, and native OS `share` action.
+- **Interactive Mutations**:
+  - `POST /api/v1/pay/transfers`: Validates `domain.TransferRequest`, updates wallet balance and 5% cashback vault, stores a `domain.TransferRecord`, and emits `trigger_feedback` (`celebration`) + `show_toast` + `navigate` (`pay-receipt?id=PAY-xxxx`).
+  - `POST /api/v1/pay/cards/controls`: Validates `domain.CardControlRequest`, updates card freeze/FX/contactless/spend-limit state atomically, and emits `trigger_feedback` + `show_toast` + string-only `track_event`.
+- **Example**:
+  ```bash
+  curl "http://localhost:8085/api/v1/screens/pay-home"
+
+  curl -X POST http://localhost:8085/api/v1/pay/transfers \
+    -H "Content-Type: application/json" \
+    -d '{"recipient":"@maya.chen","amount_usd":125.00,"speed":"instant","funding_source":"checking","pin":"4829"}'
+
+  curl -X POST http://localhost:8085/api/v1/pay/cards/controls \
+    -H "Content-Type: application/json" \
+    -d '{"card_id":"metal_4092","frozen":false,"international":true,"contactless":true,"spend_limit_usd":6000}'
+  ```
+
 ---
 
 ## 3. Adding a New Vertical (`OCP` Recipe)
 
-Because screen discovery and dispatch rely exclusively on `domain.VerticalModule`, adding a 7th vertical requires zero edits to `internal/domain` or `internal/usecase`:
+Because screen discovery and dispatch rely exclusively on `domain.VerticalModule`, adding an 8th vertical requires zero edits to `internal/usecase`:
 
 1. **Create package `internal/verticals/<name>/`** with a struct implementing `domain.VerticalModule`:
    ```go
@@ -121,7 +144,7 @@ Because screen discovery and dispatch rely exclusively on `domain.VerticalModule
    var _ domain.VerticalModule = (*Module)(nil)
    ```
 2. **Guard mutable state with `sync.RWMutex`** so concurrent HTTP requests and `go test -race ./...` are strictly race-free.
-3. **Use `github.com/abeta-dev/kmp/bff@v0.3.0` builders** (`snippets`, `atoms`, `actions`, `theming` — including Wave 6 `nudge_bar`, `marquee_strip`, `order_tracker`, and `composed_block` molding helpers) and honor the **string-only tracking property rule** (`map[string]string` in every `TrackingContract`).
+3. **Use `github.com/abeta-dev/kmp/bff@v0.5.0` builders** (`snippets`, `atoms`, `actions`, `theming` — including the 12 extended production atoms, `nudge_bar`, `marquee_strip`, `order_tracker`, and `composed_block` molding helpers across 29 `ComposedNodeKind`s) and honor the **string-only tracking property rule** (`map[string]string` in every `TrackingContract`).
 4. **Register the new module** in `cmd/sdui-bff` when constructing the `ScreenComposer` (and mount any vertical-specific mutation routes in `internal/handler`).
 5. **Write table-driven unit & concurrency tests** (`<name>_test.go`) verifying all screens, search/filter queries, mutation endpoints, `follow_up_actions`, and tracking property types.
 6. **Run the full verification gate**:

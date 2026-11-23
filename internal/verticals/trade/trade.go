@@ -358,9 +358,10 @@ func (m *Module) renderSupplier(req domain.ScreenRequest) snippets.PageResponse 
 		WithLayout(cardLayout()).
 		Build()
 
-	pageSnippets := make([]snippets.SnippetEnvelope, 0, 4+len(supplier.Tiers)+len(recentRFQs))
+	pageSnippets := make([]snippets.SnippetEnvelope, 0, 5+len(supplier.Tiers)+len(recentRFQs))
 	pageSnippets = append(pageSnippets, header, trustMetric)
 	pageSnippets = append(pageSnippets, buildTierCards(supplier)...)
+	pageSnippets = append(pageSnippets, buildLandedCostComposedBlock(supplier, city))
 	pageSnippets = append(pageSnippets, buildRFQForm(supplier, city))
 
 	if len(recentRFQs) > 0 {

@@ -17,7 +17,7 @@ var (
 	ErrNotFound       = errors.New("resource not found")
 )
 
-// AppDescriptor describes a single vertical application exposed in the 6-in-1 Super-App catalog.
+// AppDescriptor describes a single vertical application exposed in the 7-in-1 Super-App catalog.
 type AppDescriptor struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
@@ -130,4 +130,41 @@ type RFQRecord struct {
 	ContactEmail string    `json:"contact_email"`
 	Status       string    `json:"status"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+// TransferRequest represents an instant P2P or scheduled transfer request for Abeta Pay.
+type TransferRequest struct {
+	Recipient     string  `json:"recipient"`
+	AmountUSD     float64 `json:"amount_usd,omitempty"`
+	AmountCents   int     `json:"amount_cents,omitempty"`
+	Currency      string  `json:"currency,omitempty"`
+	Speed         string  `json:"speed,omitempty"`          // instant | scheduled | autopay
+	FundingSource string  `json:"funding_source,omitempty"` // checking | cashback_wallet | reserve
+	Pin           string  `json:"pin,omitempty"`
+	Memo          string  `json:"memo,omitempty"`
+	Note          string  `json:"note,omitempty"` // alias for memo
+}
+
+// CardControlRequest represents a smart metal card security & spend-limit update for Abeta Pay.
+type CardControlRequest struct {
+	CardID        string  `json:"card_id,omitempty"`
+	Frozen        *bool   `json:"frozen,omitempty"`
+	International *bool   `json:"international,omitempty"`
+	Contactless   *bool   `json:"contactless,omitempty"`
+	SpendLimitUSD float64 `json:"spend_limit_usd,omitempty"`
+}
+
+// TransferRecord represents a persisted P2P transfer settlement in Abeta Pay.
+type TransferRecord struct {
+	TransferID    string    `json:"transfer_id"`
+	Recipient     string    `json:"recipient"`
+	AmountUSD     float64   `json:"amount_usd"`
+	FeeUSD        float64   `json:"fee_usd"`
+	CashbackUSD   float64   `json:"cashback_usd"`
+	Currency      string    `json:"currency"`
+	Speed         string    `json:"speed"`
+	FundingSource string    `json:"funding_source"`
+	Memo          string    `json:"memo,omitempty"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
 }

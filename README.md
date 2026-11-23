@@ -7,9 +7,9 @@
 [![Deploy to Render](https://img.shields.io/badge/Deploy_Free-Render-46E3B7.svg?logo=render&logoColor=black)](https://render.com/deploy?repo=https://github.com/Abeta-dev/sdui-bff)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-**Abeta SDUI Domain BFF** (`github.com/abeta-dev/sdui-bff`) is a standalone **Go 1.26.0** Clean Architecture **Backend-for-Frontend (BFF)** powering **6 stateful Super-App vertical experiences** over Server-Driven UI (SDUI) wire contracts.
+**Abeta SDUI Domain BFF** (`github.com/abeta-dev/sdui-bff`, `v0.3.0`) is a standalone **Go 1.26.0** Clean Architecture **Backend-for-Frontend (BFF)** powering **7 stateful Super-App vertical experiences** (**Abeta Fresh**, **Abeta Bites**, **Abeta Pulse**, **Abeta Mart**, **Abeta Spark**, **Abeta Trade**, and **Abeta Pay**) over Server-Driven UI (SDUI) wire contracts.
 
-It consumes typed `v1` SDUI contracts directly from [`github.com/abeta-dev/kmp/bff@v0.3.0`](https://github.com/Abeta-dev/kmp) (**16 Wire Atoms** incl. `CountdownAtom`, **21 canonical SnippetTypes** including `swipe_deck`, `search_bar`, `chip_group`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block` recipes, **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and **Free-Delivery threshold `FloatingCartSpec` docks**) wrapped in [`github.com/abeta-dev/go-libs@v0.4.0`](https://github.com/Abeta-dev/go-libs) `ginmw.Envelope` responses, and optionally integrates with [`Abeta-dev/layout-engine`](https://github.com/Abeta-dev/layout-engine) for dynamic CMS-managed layout hydration with automatic standalone fallback.
+It consumes typed `v1` SDUI contracts directly from [`github.com/abeta-dev/kmp/bff@v0.5.0`](https://github.com/Abeta-dev/kmp) (**28 Wire Atoms** / **30 Compose UI Atoms** incl. `CountdownAtom` and the 12 extended production atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`, **21 canonical SnippetTypes** including `swipe_deck`, `search_bar`, `chip_group`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block` recipes with **29 `ComposedNodeKind`s**, **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and **Free-Delivery threshold `FloatingCartSpec` docks**) wrapped in [`github.com/abeta-dev/go-libs@v0.4.0`](https://github.com/Abeta-dev/go-libs) `ginmw.Envelope` responses, and optionally integrates with [`Abeta-dev/layout-engine`](https://github.com/Abeta-dev/layout-engine) for dynamic CMS-managed layout hydration with automatic standalone fallback.
 
 > **LLM & AI-Agent Ready**: Read the concise [`llmstxt.org`](https://llmstxt.org/) index in **[`llms.txt`](llms.txt)**, the full single-file reference in **[`llms-full.txt`](llms-full.txt)**, or fetch live **`GET /llms.txt`** and **`GET /llms-full.txt`** directly from any running instance (`http://localhost:8085/llms.txt`).
 
@@ -19,7 +19,7 @@ It consumes typed `v1` SDUI contracts directly from [`github.com/abeta-dev/kmp/b
 
 | Repository | Role | Default Port / Runtime |
 | :--- | :--- | :--- |
-| **[`Abeta-dev/kmp`](https://github.com/Abeta-dev/kmp)** | Kotlin Multiplatform + Compose Multiplatform SDUI Client Kit (`v0.3.0` contracts, 18 Compose atoms, 21 snippet renderers incl. Atomic Snippet Molding `composed_block`, 18 OCP actions, 7 ambient `MotionLoopEffect`s, `:sample-app` 6-in-1 Super-App Showcase, `:storybook` 16 stories, `:watch-companion`) | Android · iOS · macOS · Desktop JVM · WasmJS · watchOS · Wear OS |
+| **[`Abeta-dev/kmp`](https://github.com/Abeta-dev/kmp)** | Kotlin Multiplatform + Compose Multiplatform SDUI Client Kit (`v0.5.0` contracts, 28 Wire Atoms / 30 Compose UI Atoms, 21 snippet renderers incl. Atomic Snippet Molding `composed_block` with 29 `ComposedNodeKind`s, 18 OCP actions, 7 ambient `MotionLoopEffect`s, `:sample-app` 7-in-1 Super-App Showcase, `:storybook` 20 stories, `:watch-companion`) | Android · iOS · macOS · Desktop JVM · WasmJS · watchOS · Wear OS |
 | **[`Abeta-dev/layout-engine`](https://github.com/Abeta-dev/layout-engine)** | Multi-tenant Dynamic SDUI Layout Engine & Visual Layout Studio (rule targeting, UTC scheduling, dynamic slotting, immutable snapshots, rollback, fallback) | `:8090` (SQLite WAL or PostgreSQL 17) |
 | **[`Abeta-dev/sdui-bff`](https://github.com/Abeta-dev/sdui-bff)** *(this repo)* | Stateful Multi-Vertical Domain BFF orchestrating domain state, search/filtering, interactive mutations (`follow_up_actions`), and optional Layout Engine screen composition | `:8085` (zero-dependency standalone or integrated via `LAYOUT_ENGINE_URL`) |
 
@@ -40,7 +40,7 @@ flowchart TB
         HANDLER["internal/handler\nGin Router · Brotli/Gzip · SHA-256 ETag · OpenAPI 3.1 (/openapi.json, /docs)\nOptional JWT & Rate Limit · go-libs/ginmw Envelopes"]
         USECASE["internal/usecase\nScreenComposer (Layout Engine Hydration + Vertical Fallback) · ActionExecutor"]
         DOMAIN["internal/domain\nPure Models, Sentinel Errors & Ports (VerticalModule, LayoutEngineClient)\nZero HTTP/Gin/Infra imports — enforced by arch_test.go"]
-        VERTICALS["internal/verticals/*\n6 OCP VerticalModule Implementations\nFresh · Bites · Pulse · Mart · Spark · Trade"]
+        VERTICALS["internal/verticals/*\n7 OCP VerticalModule Implementations\nFresh · Bites · Pulse · Mart · Spark · Trade · Pay"]
         LAYOUT_CLIENT["internal/infra/layoutclient\nOptional HTTP Client (5s timeout, 4 MiB cap, targeting headers)"]
 
         CMD --> HANDLER
@@ -59,28 +59,29 @@ flowchart TB
         LE --> PG
     end
 
-    KMP <-- "ginmw.Envelope + v1 PageResponse\n(21 Snippets · 18 Actions · Wave 6 Nudges & Composed Recipes)" --> HANDLER
+    KMP <-- "ginmw.Envelope + v1 PageResponse\n(28 Wire Atoms · 29 ComposedNodeKinds · 21 Snippets · 18 Actions)" --> HANDLER
     LAYOUT_CLIENT -. "GET /api/v1/screens/:slug\n(when LAYOUT_ENGINE_URL is set)" .-> LE
 ```
 
 ---
 
-## 6 Stateful Super-App Verticals
+## 7 Stateful Super-App Verticals
 
-Each vertical is registered as an Open/Closed (`OCP`) `domain.VerticalModule` with live filtering, search, state transitions, **Wave 6 quick-commerce animations & nudges** (`marquee_strip` tickers, urgency `nudge_bar` with `CountdownAtom` & ambient loops, Free-Delivery threshold `FloatingCartSpec` docks, animated 4-step `order_tracker`, and zero-release server-molded `composed_block` recipes), and rich `follow_up_actions` (`trigger_feedback` celebrations, toasts, and navigation).
+Each vertical is registered as an Open/Closed (`OCP`) `domain.VerticalModule` with live filtering, search, state transitions, **v0.5.0 extended production UI atoms** (`QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip` molded via `composed_block`), quick-commerce animations & nudges (`marquee_strip` tickers, urgency `nudge_bar` with `CountdownAtom` & ambient loops, Free-Delivery threshold `FloatingCartSpec` docks, animated 4-step `order_tracker`), and rich `follow_up_actions` (`trigger_feedback` celebrations, toasts, and navigation).
 
-| Vertical App | Category | Tenant ID | Theme Preset | Screen Routes (`GET /api/v1/screens/:id`) | Wave 6 Highlights | Domain Mutation Endpoints |
+| Vertical App | Category | Tenant ID | Theme Preset | Screen Routes (`GET /api/v1/screens/:id`) | v0.5.0 Molded Atoms & Highlights | Domain Mutation Endpoints |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Abeta Fresh** | Quick-Commerce (8-Min Grocery) | `abeta-fresh` | `EMERALD` | `fresh-home`, `store-home` | `marquee_strip`, `fresh_flash_nudge` (`420s` countdown + `wiggle`), `MoldLoyaltyStampRecipe` (`composed_block`), `$15` Free-Delivery cart dock | `POST /api/v1/fresh/orders/express`, `POST /api/v1/orders/express` |
-| **Abeta Bites** | Food Delivery & Dining | `abeta-bites` | `AMBER` | `bites-home`, `bites-restaurant`, `bites-order-track` | `marquee_strip` hot offers, `$18` Free Priority Delivery cart dock, animated 4-step `order_tracker` (`#BTS-xxxx`, `660s` ETA countdown, rider CTAs) | `POST /api/v1/bites/orders` |
-| **Abeta Pulse** | Live Events, Movies & Experiences | `abeta-pulse` | `INDIGO` | `pulse-home`, `pulse-event-detail` | Early-bird urgency `nudge_bar` (`540s` countdown + `wiggle` badge) | `POST /api/v1/pulse/bookings` |
-| **Abeta Mart** | Multi-Category Marketplace | `abeta-mart` | `INDIGO` | `mart-home`, `mart-product-detail` | `marquee_strip`, `MoldFlashDealRecipe` (`composed_block` flash drop), `$25` Free-Delivery cart dock | `POST /api/v1/mart/orders` |
-| **Abeta Spark** | Swipe Discovery & Matchmaking | `abeta-spark` | `AMBER` | `spark-deck`, `spark-matches` | Prime Boost `nudge_bar` (`heartbeat` badge) | `POST /api/v1/spark/swipe` |
-| **Abeta Trade** | B2B Wholesale & RFQ Procurement | `abeta-trade` | `EMERALD` | `trade-home`, `trade-supplier` | Server-molded MOQ Bulk Savings `composed_block` (`CardNode` + `VStack` + `HStack` + `RollingCounterNode`) | `POST /api/v1/trade/rfq` |
+| **Abeta Fresh** | Quick-Commerce (8-Min Grocery) | `abeta-fresh` | `EMERALD` | `fresh-home`, `store-home` | `marquee_strip`, `fresh_flash_nudge` (`420s` countdown + `wiggle`), `MoldLoyaltyStampRecipe`, molded `Select` delivery slot + `KeyValueRow` savings + `Badge`, `$15` Free-Delivery cart dock | `POST /api/v1/fresh/orders/express`, `POST /api/v1/orders/express` |
+| **Abeta Bites** | Food Delivery & Dining | `abeta-bites` | `AMBER` | `bites-home`, `bites-restaurant`, `bites-order-track` | `marquee_strip`, molded `Rating` + `Price` + `RadioGroup` speed + `KeyValueRow` highlights, `$18` Free Priority Delivery dock, animated 4-step `order_tracker` (`#BTS-xxxx`) | `POST /api/v1/bites/orders` |
+| **Abeta Pulse** | Live Events, Movies & Experiences | `abeta-pulse` | `INDIGO` | `pulse-home`, `pulse-event-detail` | Early-bird urgency `nudge_bar` (`540s` countdown), molded `AlertBanner` + `Rating` + `QrCode` mobile e-pass preview on detail | `POST /api/v1/pulse/bookings` |
+| **Abeta Mart** | Multi-Category Marketplace | `abeta-mart` | `INDIGO` | `mart-home`, `mart-product-detail` | `marquee_strip`, `MoldFlashDealRecipe`, molded `Price` (MRP + discount pill) + `Rating` + `Chip` + `KeyValueRow` highlights, `$25` Free-Delivery cart dock | `POST /api/v1/mart/orders` |
+| **Abeta Spark** | Swipe Discovery & Matchmaking | `abeta-spark` | `AMBER` | `spark-deck`, `spark-matches` | Prime Boost `nudge_bar` (`heartbeat` badge), interactive `swipe_deck`, live match persistence | `POST /api/v1/spark/swipe` |
+| **Abeta Trade** | B2B Wholesale & RFQ Procurement | `abeta-trade` | `EMERALD` | `trade-home`, `trade-supplier` | Molded MOQ Bulk Savings `composed_block` (`RollingCounter` + `StatTile` telemetry), landed-cost `StatTile` + `KeyValueRow` breakdown on RFQ screen | `POST /api/v1/trade/rfq` |
+| **Abeta Pay** | Fintech Wallet & Smart Cards | `abeta-pay` | `INDIGO` | `pay-home`, `pay-transfer`, `pay-cards`, `pay-receipt` | Balance/cashback `StatTile`s, `MarqueeStrip`, live `#PAY-3081` `OrderTracker`, scan-to-pay `QrCode` + `Chip`, `SegmentedControl` + `RadioGroup` + masked 4-digit `OtpInput` + `KeyValueRow` transfer flow, card `Badge` + `AlertBanner` controls, itemized receipt + OS `share` | `POST /api/v1/pay/transfers`, `POST /api/v1/pay/cards/controls` |
 
 ### Core Discovery, Action & Ops Endpoints
-- `GET /api/v1/apps` — Super-App catalog describing all 6 vertical apps
-- `GET /api/v1/screens` — List all discoverable screen routes across verticals
+- `GET /api/v1/apps` — Super-App catalog describing all 7 vertical apps
+- `GET /api/v1/screens` — List all 17 discoverable screen routes across all 7 verticals
 - `GET /api/v1/screens/:screenId` — Fetch a `v1` `PageResponse` (supports `?q=`, `?filter=`, `?city=`, `?id=`, `?cursor=`, and `X-Tenant-ID`, `X-Platform`, `X-City`, `X-User-Segment`, `X-Window-Class`)
 - `POST /api/v1/actions/execute` — Execute generic SDUI actions and return `follow_up_actions`
 - `GET /llms.txt` & `GET /llms-full.txt` — Live plain-text `llmstxt.org` AI-agent documentation served from embedded repo files
@@ -150,12 +151,13 @@ cd sdui-bff
 go run ./cmd/sdui-bff
 ```
 
-The BFF starts on **`:8085`** with all 6 stateful verticals ready immediately:
+The BFF starts on **`:8085`** with all 7 stateful verticals ready immediately:
 
 ```bash
 curl http://localhost:8085/healthz
 curl http://localhost:8085/api/v1/apps
 curl "http://localhost:8085/api/v1/screens/fresh-home?city=Bengaluru"
+curl "http://localhost:8085/api/v1/screens/pay-home"
 ```
 
 ### Mode 2: Connected to Local `Abeta-dev/layout-engine`
@@ -185,13 +187,13 @@ docker compose up --build
 
 ## Connecting `Abeta-dev/kmp` (`sample-app`)
 
-Launch the `Abeta-dev/kmp` 6-in-1 Super-App Showcase pointed directly at `sdui-bff`:
+Launch the `Abeta-dev/kmp` 7-in-1 Super-App Showcase pointed directly at `sdui-bff`:
 
 ```bash
 (cd ../kmp/kmp && ./gradlew :sample-app:run --args="--bff-url=http://localhost:8085")
 ```
 
-Run headless end-to-end verification across all 6 verticals:
+Run headless end-to-end verification across all 7 verticals:
 
 ```bash
 (cd ../kmp/kmp && ./gradlew :sample-app:run --args="--headless --bff-url=http://localhost:8085")
@@ -233,7 +235,7 @@ make docker-up               # Start full 3-service Compose stack
 
 - [llms.txt](llms.txt) · [llms-full.txt](llms-full.txt) — `llmstxt.org` AI-agent index and complete single-file technical reference (also served live at `GET /llms.txt` and `GET /llms-full.txt`)
 - [docs/architecture.md](docs/architecture.md) — Clean Architecture layers, `VerticalModule` OCP design, Layout Engine hydration, and KMP wire invariants
-- [docs/verticals-guide.md](docs/verticals-guide.md) — Deep guide to all 6 stateful vertical apps, endpoints, interactive snippets, and adding new verticals
+- [docs/verticals-guide.md](docs/verticals-guide.md) — Deep guide to all 7 stateful vertical apps, endpoints, interactive snippets, molded v0.5.0 atoms, and adding new verticals
 - [AGENTS.md](AGENTS.md) · [CLAUDE.md](CLAUDE.md) · [GEMINI.md](GEMINI.md) — Multi-IDE AI coding agent contracts and verification gates
 - [skills/abeta-sdui-bff/SKILL.md](skills/abeta-sdui-bff/SKILL.md) · [agents/bff-engineer.md](agents/bff-engineer.md) — Domain engineering skill and Code Owner persona
 - [LICENSE](LICENSE) — Apache License 2.0

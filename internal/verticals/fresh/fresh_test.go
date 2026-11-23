@@ -64,7 +64,7 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 			t.Fatalf("unexpected floating cart nudge labels: prefix=%q unlocked=%q", page.FloatingCart.NudgePrefix, page.FloatingCart.UnlockedLabel)
 		}
 
-		var gridFound, marqueeFound, nudgeFound, composedFound bool
+		var gridFound, marqueeFound, nudgeFound, loyaltyFound, deliverySummaryFound bool
 		for _, env := range page.Snippets {
 			switch env.SnippetType {
 			case snippets.SnippetTypeHeader:
@@ -100,13 +100,26 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 					t.Errorf("expected MotionLoopWiggle on fresh nudge badge, got %+v", nudge.Badge)
 				}
 			case snippets.SnippetTypeComposedBlock:
-				composedFound = true
 				cb, err := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](env)
 				if err != nil {
 					t.Fatalf("decode composed_block: %v", err)
 				}
-				if cb.RecipeName != "loyalty_stamp_card" || cb.BlockID != "abeta_fresh_club" {
-					t.Errorf("unexpected fresh composed_block: %+v", cb)
+				switch cb.RecipeName {
+				case "loyalty_stamp_card":
+					loyaltyFound = true
+					if cb.BlockID != "abeta_fresh_club" {
+						t.Errorf("unexpected fresh loyalty composed_block: %+v", cb)
+					}
+				case "express_delivery_summary":
+					deliverySummaryFound = true
+					rawCB, _ := json.Marshal(cb)
+					for _, wantKind := range []string{snippets.ComposedNodeSelect, snippets.ComposedNodeKeyValueRow, snippets.ComposedNodeBadge} {
+						if !strings.Contains(string(rawCB), `"`+wantKind+`"`) {
+							t.Errorf("express_delivery_summary missing composed node kind %q", wantKind)
+						}
+					}
+				default:
+					t.Errorf("unexpected fresh composed_block recipe: %+v", cb)
 				}
 			case snippets.SnippetTypeGrid:
 				gridFound = true
@@ -129,8 +142,8 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 				}
 			}
 		}
-		if !gridFound || !marqueeFound || !nudgeFound || !composedFound {
-			t.Fatalf("missing expected Wave 6 snippets on %s: grid=%v marquee=%v nudge=%v composed=%v", screenID, gridFound, marqueeFound, nudgeFound, composedFound)
+		if !gridFound || !marqueeFound || !nudgeFound || !loyaltyFound || !deliverySummaryFound {
+			t.Fatalf("missing expected snippets on %s: grid=%v marquee=%v nudge=%v loyalty=%v deliverySummary=%v", screenID, gridFound, marqueeFound, nudgeFound, loyaltyFound, deliverySummaryFound)
 		}
 
 		assertAllTrackingPropsAreStrings(t, page)

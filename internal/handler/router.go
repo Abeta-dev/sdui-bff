@@ -17,6 +17,7 @@ import (
 	"github.com/abeta-dev/sdui-bff/internal/verticals/bites"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/fresh"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/mart"
+	"github.com/abeta-dev/sdui-bff/internal/verticals/pay"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/pulse"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/spark"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/trade"
@@ -37,6 +38,7 @@ type Dependencies struct {
 	Mart           *mart.Module
 	Spark          *spark.Module
 	Trade          *trade.Module
+	Pay            *pay.Module
 	JWTSecret      string
 	RateLimitRPS   float64
 	Logger         *slog.Logger
@@ -105,6 +107,8 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	v1.POST("/mart/orders", h.placeMartOrder)
 	v1.POST("/spark/swipe", h.recordSparkSwipe)
 	v1.POST("/trade/rfq", h.submitTradeRFQ)
+	v1.POST("/pay/transfers", h.executePayTransfer)
+	v1.POST("/pay/cards/controls", h.updatePayCardControls)
 
 	return engine
 }
@@ -340,6 +344,40 @@ func (h *bffHandler) submitTradeRFQ(c *gin.Context) {
 		return
 	}
 	res, err := h.deps.Trade.SubmitRFQ(c.Request.Context(), req)
+	if err != nil {
+		respondDomainError(c, err)
+		return
+	}
+	ginmw.RespondSuccess(c, res)
+}
+
+func (h *bffHandler) executePayTransfer(c *gin.Context) {
+	if h.deps.Pay == nil {
+		ginmw.RespondError(c, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "pay vertical unavailable")
+		return
+	}
+	var req domain.TransferRequest
+	if !bindOptionalJSON(c, &req, "invalid transfer payload") {
+		return
+	}
+	res, err := h.deps.Pay.ExecuteTransfer(c.Request.Context(), req)
+	if err != nil {
+		respondDomainError(c, err)
+		return
+	}
+	ginmw.RespondSuccess(c, res)
+}
+
+func (h *bffHandler) updatePayCardControls(c *gin.Context) {
+	if h.deps.Pay == nil {
+		ginmw.RespondError(c, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "pay vertical unavailable")
+		return
+	}
+	var req domain.CardControlRequest
+	if !bindOptionalJSON(c, &req, "invalid card controls payload") {
+		return
+	}
+	res, err := h.deps.Pay.UpdateCardControls(c.Request.Context(), req)
 	if err != nil {
 		respondDomainError(c, err)
 		return

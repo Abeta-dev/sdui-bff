@@ -392,7 +392,7 @@ func (m *Module) renderEventDetailScreen(req domain.ScreenRequest) snippets.Page
 		WithLayout(cardLayout()).
 		Build()
 
-	pageSnippets := []snippets.SnippetEnvelope{header, heroCard, venueRow}
+	pageSnippets := []snippets.SnippetEnvelope{header, heroCard, venueRow, buildEventEPassPreviewBlock(evt, city)}
 	for idx, tier := range tiers {
 		bookAct := buildBookAPIAction(evt, tier.Name, defaultTicketsQty, city)
 		tierID := strings.ToLower(strings.ReplaceAll(tier.Name, " ", "_"))

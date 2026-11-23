@@ -164,6 +164,76 @@ func buildLoyaltyComposedSnippet(orderCount int) snippets.SnippetEnvelope {
 	)
 }
 
+func buildDeliverySummaryComposedBlock(city string) snippets.SnippetEnvelope {
+	saveSlot := actions.NewSaveStateAction("fresh_save_delivery_slot", actions.SaveStatePayload{
+		Key:   "fresh_delivery_slot",
+		Value: "express_8m",
+		Scope: "session",
+	})
+	slotSelect := atoms.NewSelect(
+		"fresh_delivery_slot",
+		"Express Delivery Slot",
+		"Choose arrival window",
+		"express_8m",
+		atoms.OptionItem{ID: "express_8m", Label: "8-Min Chilled Express", Subtitle: "Instant micro-hub dispatch in " + city, Badge: "FASTEST"},
+		atoms.OptionItem{ID: "scheduled_30m", Label: "30-Min Scheduled", Subtitle: "Pick an exact chilled arrival window"},
+		atoms.OptionItem{ID: "evening_eco", Label: "Evening Eco Slot", Subtitle: "Zero-emission consolidated drop", Badge: "ECO"},
+	)
+	slotSelect.HelperText = "Free 8-min express delivery unlocks automatically at $15.00"
+	slotSelect.OnChange = &saveSlot
+
+	coldChainRow := atoms.NewKeyValueRow("fresh_kv_cold_chain", "Cold-Chain Seal & Packaging", "$0.00")
+	coldChainRow.ValueColor = atoms.ColorRef(theming.ColorSuccess)
+	coldChainRow.ShowDivider = true
+
+	deliveryRow := atoms.NewKeyValueRow("fresh_kv_delivery", "Express Delivery ("+city+")", "FREE over $15")
+	deliveryRow.ValueColor = atoms.ColorRef(theming.ColorSuccess)
+	deliveryRow.ShowDivider = true
+
+	savingsRow := atoms.NewKeyValueRow("fresh_kv_savings", "Fresh Club Member Savings", "-$2.50")
+	savingsRow.ValueColor = atoms.ColorRef(theming.ColorBrandPrimary)
+	savingsRow.Emphasized = true
+
+	coldBadge := atoms.BadgeAtom{
+		ID:      "fresh_cold_chain_badge",
+		Label:   "CHILLED",
+		Variant: atoms.VariantSuccess,
+	}
+
+	root := snippets.CardNode(
+		cardLayout(),
+		snippets.VStack(
+			theming.SpacingMD.Dp(),
+			snippets.HStack(
+				theming.SpacingSM.Dp(),
+				snippets.TextNode(atoms.NewText("Delivery Slot & Fee Summary", theming.TypographyTitleMedium, theming.ColorTextPrimary)).WithWeight(1),
+				snippets.BadgeNode(coldBadge),
+			).WithArrangement(snippets.ComposedAlignSpaceBetween).WithAlignment("", snippets.ComposedAlignCenter),
+			snippets.SelectNode(slotSelect).WithNodeID("fresh_slot_select_node"),
+			snippets.DividerNode(atoms.DividerAtom{
+				ThicknessDp: atoms.Float64Ptr(1),
+				Color:       atoms.ColorRef(theming.ColorDivider),
+			}),
+			snippets.KeyValueRowNode(coldChainRow),
+			snippets.KeyValueRowNode(deliveryRow),
+			snippets.KeyValueRowNode(savingsRow),
+		),
+	).WithNodeID("fresh_delivery_summary_root")
+
+	return snippets.NewComposedBlockSnippet("fresh_delivery_summary_block", "fresh_delivery_summary", root).
+		WithRecipeName("express_delivery_summary").
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionFadeIn,
+			DurationToken: atoms.MotionDurationNormal,
+		}).
+		WithTracking("composed_recipe_viewed", map[string]any{
+			"vertical": verticalID,
+			"recipe":   "express_delivery_summary",
+			"city":     city,
+		}).
+		Build()
+}
+
 func buildSearchSnippet(query string) snippets.SnippetEnvelope {
 	return snippets.NewSearchBarSnippet("fresh_search_bar", "fresh_search", "Search avocados, A2 milk, sourdough, drinks...").
 		WithQuery(query).

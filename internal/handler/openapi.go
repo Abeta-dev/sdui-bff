@@ -50,6 +50,10 @@ var verticalScreenIDs = []string{
 	"spark-matches",
 	"trade-home",
 	"trade-supplier",
+	"pay-home",
+	"pay-transfer",
+	"pay-cards",
+	"pay-receipt",
 }
 
 func registerOpenAPIRoutes(engine *gin.Engine, name string, requireAuth bool) {
@@ -181,8 +185,8 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 		"openapi": openAPIVersion,
 		"info": map[string]any{
 			"title":       name,
-			"version":     "1.1.0",
-			"description": "Abeta Multi-Vertical SDUI Domain BFF powered by github.com/abeta-dev/kmp/bff@v0.3.0 (16 Wire Atoms, 21 canonical SDUI snippet types including nudge_bar, marquee_strip, order_tracker, and server-molded composed_block recipes, 18 ActionTypes, 7 ambient MotionLoopEffects, and Free-Delivery threshold FloatingCartSpec docks) across Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, and Abeta Trade with optional Layout Engine hydration.",
+			"version":     "1.2.0",
+			"description": "Abeta Multi-Vertical SDUI Domain BFF (v0.3.0) powered by github.com/abeta-dev/kmp/bff@v0.5.0 (28 Wire Atoms / 30 Compose UI Atoms / 29 ComposedNodeKinds, 21 canonical SDUI snippet types including nudge_bar, marquee_strip, order_tracker, and server-molded composed_block recipes, 18 ActionTypes, 7 ambient MotionLoopEffects, and Free-Delivery threshold FloatingCartSpec docks) across 7 stateful Super-App verticals: Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade, and Abeta Pay with optional Layout Engine hydration.",
 		},
 		"servers": []map[string]any{
 			{"url": "/", "description": "Current SDUI BFF origin"},
@@ -198,6 +202,7 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 			{"name": "Abeta Mart", "description": "Multi-category marketplace orders"},
 			{"name": "Abeta Spark", "description": "Swipe discovery deck and live match persistence"},
 			{"name": "Abeta Trade", "description": "B2B wholesale supplier sourcing and RFQ submissions"},
+			{"name": "Abeta Pay", "description": "Zero-fee P2P wallet transfers, smart metal card controls, and settlement receipts"},
 		},
 		"paths": map[string]any{
 			"/healthz": map[string]any{
@@ -271,7 +276,7 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 			},
 			"/api/v1/apps": map[string]any{
 				"get": map[string]any{
-					"summary":     "List all 6 Super-App verticals",
+					"summary":     "List all 7 Super-App verticals",
 					"operationId": "listApps",
 					"tags":        []string{"Discovery"},
 					"security":    apiSecurity,
@@ -293,7 +298,7 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 			},
 			"/api/v1/screens": map[string]any{
 				"get": map[string]any{
-					"summary":     "List all discoverable SDUI screen routes across all 6 verticals",
+					"summary":     "List all discoverable SDUI screen routes across all 7 verticals",
 					"operationId": "listScreens",
 					"tags":        []string{"Discovery"},
 					"security":    apiSecurity,
@@ -362,6 +367,8 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 			"/api/v1/mart/orders":          postMutation("Place an Abeta Mart marketplace order", "placeMartOrder", "Abeta Mart", "ExpressOrderRequest", false),
 			"/api/v1/spark/swipe":          postMutation("Record an Abeta Spark swipe decision", "recordSparkSwipe", "Abeta Spark", "SwipeRequest", true),
 			"/api/v1/trade/rfq":            postMutation("Submit an Abeta Trade B2B Request For Quotation", "submitTradeRFQ", "Abeta Trade", "RFQRequest", true),
+			"/api/v1/pay/transfers":        postMutation("Execute an Abeta Pay instant or scheduled P2P transfer", "executePayTransfer", "Abeta Pay", "TransferRequest", false),
+			"/api/v1/pay/cards/controls":   postMutation("Update Abeta Pay smart metal card security & spend limit controls", "updatePayCardControls", "Abeta Pay", "CardControlRequest", false),
 		},
 		"components": map[string]any{
 			"securitySchemes": map[string]any{
@@ -408,7 +415,7 @@ func openAPISchemas() map[string]any {
 		},
 		"PageResponse": map[string]any{
 			"type":        "object",
-			"description": "Typed v1 SDUI PageResponse from github.com/abeta-dev/kmp/bff@v0.3.0 (21 canonical snippet types, adaptive_layout, floating_cart with free-delivery threshold nudges, and string-only tracking)",
+			"description": "Typed v1 SDUI PageResponse from github.com/abeta-dev/kmp/bff@v0.5.0 (28 Wire Atoms / 29 ComposedNodeKinds, 21 canonical snippet types, adaptive_layout, floating_cart with free-delivery threshold nudges, and string-only tracking)",
 			"properties": map[string]any{
 				"page_id": map[string]any{"type": "string"},
 				"title":   map[string]any{"type": "string"},
@@ -497,6 +504,29 @@ func openAPISchemas() map[string]any {
 				"notes":         map[string]any{"type": "string"},
 			},
 			"required": []string{"company_name", "contact_email", "quantity"},
+		},
+		"TransferRequest": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"recipient":      map[string]any{"type": "string", "example": "@maya.chen"},
+				"amount_usd":     map[string]any{"type": "number", "example": 125.00},
+				"amount_cents":   map[string]any{"type": "integer", "example": 12500},
+				"currency":       map[string]any{"type": "string", "example": "USD"},
+				"speed":          map[string]any{"type": "string", "enum": []string{"instant", "scheduled", "autopay"}},
+				"funding_source": map[string]any{"type": "string", "enum": []string{"checking", "cashback_wallet", "reserve"}},
+				"pin":            map[string]any{"type": "string", "example": "4829"},
+				"memo":           map[string]any{"type": "string"},
+			},
+		},
+		"CardControlRequest": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"card_id":         map[string]any{"type": "string", "example": "metal_4092"},
+				"frozen":          map[string]any{"type": "boolean"},
+				"international":   map[string]any{"type": "boolean"},
+				"contactless":     map[string]any{"type": "boolean"},
+				"spend_limit_usd": map[string]any{"type": "number", "example": 5000},
+			},
 		},
 	}
 }

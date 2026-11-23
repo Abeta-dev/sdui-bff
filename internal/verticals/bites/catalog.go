@@ -165,6 +165,70 @@ func buildOrderTrackerSnippet(order foodOrder) snippets.SnippetEnvelope {
 		Build()
 }
 
+func buildRestaurantHighlightsBlock(rest restaurantSpec) snippets.SnippetEnvelope {
+	rating := atoms.NewRating("bites_rest_rating_"+rest.ID, rest.Rating, 5)
+	rating.ReviewCount = atoms.IntPtr(840)
+	rating.Label = rest.Cuisine
+
+	sig := rest.Dishes[0]
+	price := atoms.NewPrice("bites_sig_price_"+sig.SKU, sig.PriceDisplay, sig.OriginalPrice)
+	price.DiscountLabel = "CHEF DEAL"
+	price.UnitSuffix = "· " + sig.Name
+
+	saveSpeed := actions.NewSaveStateAction("bites_save_delivery_speed", actions.SaveStatePayload{
+		Key:   "bites_delivery_speed",
+		Value: "priority_hot",
+		Scope: "session",
+	})
+	speedGroup := atoms.NewRadioGroup(
+		"bites_delivery_speed",
+		"Delivery Speed Option",
+		"priority_hot",
+		atoms.OptionItem{ID: "priority_hot", Label: fmt.Sprintf("Priority Hot (%d mins)", rest.DeliveryMins), Subtitle: "Direct thermal dispatch · zero intermediate stops", Badge: "FAST"},
+		atoms.OptionItem{ID: "standard", Label: fmt.Sprintf("Standard (%d mins)", rest.DeliveryMins+8), Subtitle: "Insulated hot bag · $0.99 delivery"},
+		atoms.OptionItem{ID: "eco_saver", Label: "Eco Saver", Subtitle: "Consolidated route · $0 delivery fee", Badge: "FREE"},
+	)
+	speedGroup.OnChange = &saveSpeed
+
+	sealRow := atoms.NewKeyValueRow("bites_kv_seal", "Thermal Bag & Tamper Seal", "$0.00")
+	sealRow.ValueColor = atoms.ColorRef(theming.ColorSuccess)
+	sealRow.ShowDivider = true
+
+	freeRow := atoms.NewKeyValueRow("bites_kv_free_prio", "Free Priority Delivery", "Unlocks at $18.00")
+	freeRow.ValueColor = atoms.ColorRef(theming.ColorBrandPrimary)
+	freeRow.Emphasized = true
+
+	root := snippets.CardNode(
+		cardLayout(),
+		snippets.VStack(
+			theming.SpacingMD.Dp(),
+			snippets.TextNode(atoms.NewText("Kitchen Highlights & Delivery Slot", theming.TypographyTitleMedium, theming.ColorTextPrimary)),
+			snippets.RatingNode(rating).WithNodeID("bites_rating_node"),
+			snippets.PriceNode(price).WithNodeID("bites_price_node"),
+			snippets.DividerNode(atoms.DividerAtom{
+				ThicknessDp: atoms.Float64Ptr(1),
+				Color:       atoms.ColorRef(theming.ColorDivider),
+			}),
+			snippets.RadioGroupNode(speedGroup).WithNodeID("bites_speed_radio_node"),
+			snippets.KeyValueRowNode(sealRow),
+			snippets.KeyValueRowNode(freeRow),
+		),
+	).WithNodeID("bites_highlights_root")
+
+	return snippets.NewComposedBlockSnippet("bites_restaurant_highlights_block", "bites_highlights_"+rest.ID, root).
+		WithRecipeName("restaurant_highlights_card").
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionFadeIn,
+			DurationToken: atoms.MotionDurationNormal,
+		}).
+		WithTracking("composed_recipe_viewed", map[string]any{
+			"vertical":      verticalID,
+			"recipe":        "restaurant_highlights_card",
+			"restaurant_id": rest.ID,
+		}).
+		Build()
+}
+
 func buildFilterChipGroup(activeFilter string) snippets.SnippetEnvelope {
 	specs := []struct {
 		id    string

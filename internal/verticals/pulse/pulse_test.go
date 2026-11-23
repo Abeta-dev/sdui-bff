@@ -133,7 +133,27 @@ func TestPulseEventDetailAndShareAction(t *testing.T) {
 	}
 
 	var tierCount int
+	var foundEPassPreview bool
 	for _, env := range page.Snippets {
+		if env.SnippetType == snippets.SnippetTypeComposedBlock {
+			cb, err := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](env)
+			if err != nil {
+				t.Fatalf("decode pulse composed_block: %v", err)
+			}
+			if cb.RecipeName == "event_epass_preview" {
+				foundEPassPreview = true
+				rawCB, _ := json.Marshal(cb)
+				for _, wantKind := range []string{
+					snippets.ComposedNodeAlertBanner,
+					snippets.ComposedNodeRating,
+					snippets.ComposedNodeQrCode,
+				} {
+					if !strings.Contains(string(rawCB), `"`+wantKind+`"`) {
+						t.Errorf("event_epass_preview missing composed node kind %q", wantKind)
+					}
+				}
+			}
+		}
 		if env.SnippetType == snippets.SnippetTypeCard && strings.HasPrefix(env.SnippetID, "pulse_tier_") {
 			tierCount++
 			card, err := snippets.DecodeSnippetData[snippets.CardSnippetData](env)
@@ -151,6 +171,9 @@ func TestPulseEventDetailAndShareAction(t *testing.T) {
 				t.Errorf("unexpected tier call_api: %+v", callAPI)
 			}
 		}
+	}
+	if !foundEPassPreview {
+		t.Errorf("expected event_epass_preview composed_block on pulse-event-detail")
 	}
 	if tierCount != 3 {
 		t.Errorf("expected 3 seat tiers (Gold, VIP Lounge, Balcony), got %d", tierCount)

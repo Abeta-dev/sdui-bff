@@ -114,6 +114,57 @@ func buildFlashDealComposedBlock(products []catalogProduct) snippets.SnippetEnve
 	)
 }
 
+func buildPriceRatingHighlightBlock(prod catalogProduct) snippets.SnippetEnvelope {
+	ratingVal := 4.8
+	if fields := strings.Fields(prod.Rating); len(fields) > 0 {
+		if parsed, err := strconv.ParseFloat(fields[0], 64); err == nil && parsed > 0 {
+			ratingVal = parsed
+		}
+	}
+
+	price := atoms.NewPrice("mart_price_"+prod.SKU, prod.PriceDisplay, prod.OriginalPrice)
+	price.DiscountLabel = prod.Badge
+	price.UnitSuffix = "incl. warranty"
+
+	rating := atoms.NewRating("mart_rating_"+prod.SKU, ratingVal, 5)
+	rating.ReviewCount = atoms.IntPtr(612)
+	rating.Label = prod.Rating
+
+	warrantyRow := atoms.NewKeyValueRow("mart_kv_warranty_"+prod.SKU, "Warranty & Fulfillment", "1-Year Official · Next-Day")
+	warrantyRow.ValueColor = atoms.ColorRef(theming.ColorSuccess)
+	warrantyRow.Emphasized = true
+
+	root := snippets.CardNode(
+		cardLayout(),
+		snippets.VStack(
+			theming.SpacingMD.Dp(),
+			snippets.TextNode(atoms.NewText(prod.Title+" · Verified Deal", theming.TypographyTitleSmall, theming.ColorTextPrimary)),
+			snippets.PriceNode(price).WithNodeID("mart_price_node"),
+			snippets.RatingNode(rating).WithNodeID("mart_rating_node"),
+			snippets.FlowRowNode(
+				theming.SpacingSM.Dp(),
+				snippets.ChipNode(atoms.NewChip("mart_perk_nextday", "Next-Day Express", true, nil)),
+				snippets.ChipNode(atoms.NewChip("mart_perk_returns", "30-Day Returns", false, nil)),
+				snippets.ChipNode(atoms.NewChip("mart_perk_seller", "Verified Seller", false, nil)),
+			),
+			snippets.KeyValueRowNode(warrantyRow),
+		),
+	).WithNodeID("mart_price_rating_root_" + prod.SKU)
+
+	return snippets.NewComposedBlockSnippet("mart_price_rating_block_"+prod.SKU, "mart_price_rating_"+prod.SKU, root).
+		WithRecipeName("price_rating_highlight").
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionFadeIn,
+			DurationToken: atoms.MotionDurationNormal,
+		}).
+		WithTracking("composed_recipe_viewed", map[string]any{
+			"vertical": verticalID,
+			"recipe":   "price_rating_highlight",
+			"sku":      prod.SKU,
+		}).
+		Build()
+}
+
 func buildCategoryChips(activeFilter, query string) snippets.SnippetEnvelope {
 	categories := []categoryChip{
 		{ID: "all", Label: "All"},

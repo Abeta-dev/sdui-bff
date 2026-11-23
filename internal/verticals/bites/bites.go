@@ -385,7 +385,7 @@ func (m *Module) renderRestaurantScreen(req domain.ScreenRequest) snippets.PageR
 			LayoutMode: snippets.LayoutModeCentered,
 			MaxWidthDp: atoms.IntPtr(1080),
 		}).
-		AddSnippets(header, ratingMetric, menuGrid).
+		AddSnippets(header, ratingMetric, buildRestaurantHighlightsBlock(rest), menuGrid).
 		WithFloatingCart(snippets.FloatingCartSpec{
 			Label:                      "Bites Cart · " + rest.Name,
 			EtaBadge:                   &etaTag,

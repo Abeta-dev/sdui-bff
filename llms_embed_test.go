@@ -74,6 +74,11 @@ func TestEmbeddedLLMsDocsMatchDiskAndSpec(t *testing.T) {
 			"Abeta Mart",
 			"Abeta Spark",
 			"Abeta Trade",
+			"Abeta Pay",
+			"github.com/abeta-dev/kmp/bff@v0.5.0",
+			"28 Wire Atoms",
+			"30 Compose UI Atoms",
+			"29 ComposedNodeKinds",
 			"--bff-url=http://localhost:8085",
 		} {
 			if !strings.Contains(content, want) {

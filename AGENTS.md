@@ -12,7 +12,7 @@ Load the matching skill and Code Owner persona before planning or editing code:
 | :--- | :--- | :--- |
 | Full SDUI BFF development (domain ports, verticals, Layout Engine client, usecases, Gin router, CI/CD) | [skills/abeta-sdui-bff/SKILL.md](skills/abeta-sdui-bff/SKILL.md) | [agents/bff-engineer.md](agents/bff-engineer.md) |
 | Clean Architecture layers, Layout Engine hydration & KMP wire parity | [docs/architecture.md](docs/architecture.md) | [agents/bff-engineer.md](agents/bff-engineer.md) |
-| 6 stateful vertical apps (`Fresh`, `Bites`, `Pulse`, `Mart`, `Spark`, `Trade`) & adding new verticals | [docs/verticals-guide.md](docs/verticals-guide.md) | [agents/bff-engineer.md](agents/bff-engineer.md) |
+| 7 stateful vertical apps (`Fresh`, `Bites`, `Pulse`, `Mart`, `Spark`, `Trade`, `Pay`) & adding new verticals | [docs/verticals-guide.md](docs/verticals-guide.md) | [agents/bff-engineer.md](agents/bff-engineer.md) |
 
 ### Multi-IDE & Multi-Model Entrypoints
 - **Claude Code**: [CLAUDE.md](CLAUDE.md)
@@ -32,10 +32,10 @@ All changes MUST satisfy these invariants:
    - `internal/domain` MUST remain pure Go with **zero** imports of `github.com/gin-gonic/gin`, `net/http`, `internal/handler`, `internal/infra`, `internal/usecase`, or `internal/verticals`.
    - This invariant is enforced automatically in CI by `internal/domain/arch_test.go`.
 2. **Open/Closed (`OCP`) `VerticalModule` Pattern**:
-   - Every vertical app (**Abeta Fresh**, **Abeta Bites**, **Abeta Pulse**, **Abeta Mart**, **Abeta Spark**, **Abeta Trade**) implements `domain.VerticalModule` (`Descriptor()`, `Screens()`, `CanHandleScreen(screenID)`, `RenderScreen(ctx, req)`) under `internal/verticals/<vertical>/`.
+   - Every vertical app (**Abeta Fresh**, **Abeta Bites**, **Abeta Pulse**, **Abeta Mart**, **Abeta Spark**, **Abeta Trade**, **Abeta Pay**) implements `domain.VerticalModule` (`Descriptor()`, `Screens()`, `CanHandleScreen(screenID)`, `RenderScreen(ctx, req)`) under `internal/verticals/<vertical>/`.
    - Never add monolithic `switch screenID` blocks inside `internal/usecase` or `internal/handler`. Adding a new vertical must require only implementing `domain.VerticalModule` and registering it in `cmd/sdui-bff`.
-3. **1:1 `abeta-dev/kmp` Wire Protocol Consumption (`v0.3.0`)**:
-   - Emit typed `v1` SDUI contracts directly from `github.com/abeta-dev/kmp/bff@v0.3.0` (`pkg/sdui/{actions,atoms,snippets,theming}` — 16 Wire Atoms incl. `CountdownAtom`, 21 canonical SnippetTypes including `swipe_deck`, `search_bar`, `chip_group`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block`, 18 ActionTypes, 7 ambient `MotionLoopEffect`s, and Free-Delivery threshold `FloatingCartSpec` docks).
+3. **1:1 `abeta-dev/kmp` Wire Protocol Consumption (`v0.5.0`)**:
+   - Emit typed `v1` SDUI contracts directly from `github.com/abeta-dev/kmp/bff@v0.5.0` (`pkg/sdui/{actions,atoms,snippets,theming}` — **28 Wire Atoms** / **30 Compose UI Atoms** incl. the 12 extended production atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`, **21 canonical SnippetTypes** including `swipe_deck`, `search_bar`, `chip_group`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block` with **29 `ComposedNodeKind`s**, **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks).
    - Wrap all `/api/v1/*` JSON responses in `github.com/abeta-dev/go-libs@v0.4.0` `ginmw.Envelope` (`ginmw.RespondSuccess`, `ginmw.RespondError`, `ginmw.RespondErrorWithDetail`).
    - Return structured `follow_up_actions` (`[]actions.ActionTrigger`) on mutation responses so the KMP `RemoteApiCallExecutor` triggers celebrations, toasts, and navigation seamlessly.
 4. **KMP String-Only Tracking Property Rule**:
@@ -48,7 +48,7 @@ All changes MUST satisfy these invariants:
    - All in-memory stateful stores across verticals (orders, bookings, swipe decks/matches, RFQ records) MUST guard concurrent access with `sync.RWMutex` (or atomic primitives) and pass `go test -count=1 -race ./...` cleanly.
 7. **Security, CI & Brand/Path Hygiene**:
    - Never use third-party competitor brand names or machine-specific filesystem paths anywhere in code, docs, scripts, or workflows.
-   - Use strictly Abeta showcase brands (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`) and `abeta-dev` / `Abeta-dev`.
+   - Use strictly Abeta showcase brands (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`, `Abeta Pay`) and `abeta-dev` / `Abeta-dev`.
    - Always anchor `/sdui-bff` in `.gitignore` so `cmd/sdui-bff/` is never ignored.
    - Secret scanning in CI MUST use the MIT-licensed `gitleaks` CLI `v8.30.1` verified by SHA-256 (`551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb`) — never paid-gated GitHub Actions wrappers.
 

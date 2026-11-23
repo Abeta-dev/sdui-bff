@@ -1,6 +1,6 @@
 ---
 name: abeta-sdui-bff
-description: Develop, test, and operate the Abeta Multi-Vertical SDUI Domain BFF (github.com/abeta-dev/sdui-bff, Go 1.26.0 Clean Architecture) powering 6 stateful vertical apps (Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade) over github.com/abeta-dev/kmp/bff@v0.3.0 and github.com/abeta-dev/go-libs@v0.4.0 with optional Abeta-dev/layout-engine hydration.
+description: Develop, test, and operate the Abeta Multi-Vertical SDUI Domain BFF (github.com/abeta-dev/sdui-bff v0.3.0, Go 1.26.0 Clean Architecture) powering 7 stateful vertical apps (Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade, Abeta Pay) over github.com/abeta-dev/kmp/bff@v0.5.0 and github.com/abeta-dev/go-libs@v0.4.0 with optional Abeta-dev/layout-engine hydration.
 ---
 
 # Abeta SDUI Domain BFF (`abeta-dev/sdui-bff`)
@@ -19,7 +19,7 @@ sdui-bff/
 │   ├── usecase/               # ScreenComposer (Layout Engine hydration + VerticalModule fallback) & ActionExecutor
 │   ├── handler/               # Gin router, vertical endpoints, OpenAPI 3.1 (/openapi.json, /docs), Brotli/Gzip, ETag, health probes
 │   ├── infra/layoutclient/    # Optional HTTP client for Abeta-dev/layout-engine (5s timeout, 4 MiB cap, targeting headers)
-│   └── verticals/             # 6 OCP VerticalModule packages: fresh, bites, pulse, mart, spark, trade
+│   └── verticals/             # 7 OCP VerticalModule packages: fresh, bites, pulse, mart, spark, trade, pay
 ├── scripts/                   # check_brand_hygiene.sh, verify_all.sh
 ├── docs/                      # architecture.md, verticals-guide.md
 ├── agents/                    # bff-engineer.md Code Owner persona
@@ -34,16 +34,16 @@ sdui-bff/
 
 ## 2. Wire Contract & KMP Parity Rules
 
-1. **Reuse `abeta-dev/kmp/bff@v0.3.0` Contracts Directly**:
+1. **Reuse `abeta-dev/kmp/bff@v0.5.0` Contracts Directly**:
    - Import `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` directly — never duplicate wire structs.
-   - Maintain full parity with all **16 Wire Atoms** (incl. `CountdownAtom`), **21 canonical SnippetTypes** (including `swipe_deck`, `search_bar`, `chip_group`, `product_card`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block`), **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks.
+   - Maintain full parity with all **28 Wire Atoms** / **30 Compose UI Atoms** (incl. `CountdownAtom` & the 12 extended atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`), **21 canonical SnippetTypes** (including `swipe_deck`, `search_bar`, `chip_group`, `product_card`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block` with **29 `ComposedNodeKind`s**), **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks.
 2. **Envelope Compatibility**:
    - Wrap all `/api/v1/*` JSON responses in `github.com/abeta-dev/go-libs@v0.4.0` `ginmw.Envelope` (`ginmw.RespondSuccess`, `ginmw.RespondError`, `ginmw.RespondErrorWithDetail`).
 3. **KMP String-Only Tracking Property Rule**:
    - `TrackingContract.properties` on `abeta-dev/kmp` deserializes strictly as `Map<String, String>`.
    - Always emit string-only values inside every tracking property map (never ints, bools, floats, or nested maps).
 4. **Structured `follow_up_actions`**:
-   - Mutation endpoints (`/api/v1/fresh/orders/express`, `/api/v1/bites/orders`, `/api/v1/pulse/bookings`, `/api/v1/mart/orders`, `/api/v1/spark/swipe`, `/api/v1/trade/rfq`, `/api/v1/orders/express`, `/api/v1/actions/execute`) must return `domain.ActionResult` with typed `actions.ActionTrigger` entries (`trigger_feedback`, `show_toast`, `navigate`) so KMP's `RemoteApiCallExecutor` triggers UX feedback automatically.
+   - Mutation endpoints (`/api/v1/fresh/orders/express`, `/api/v1/bites/orders`, `/api/v1/pulse/bookings`, `/api/v1/mart/orders`, `/api/v1/spark/swipe`, `/api/v1/trade/rfq`, `/api/v1/pay/transfers`, `/api/v1/pay/cards/controls`, `/api/v1/orders/express`, `/api/v1/actions/execute`) must return `domain.ActionResult` with typed `actions.ActionTrigger` entries (`trigger_feedback`, `show_toast`, `navigate`) so KMP's `RemoteApiCallExecutor` triggers UX feedback automatically.
 
 ---
 
@@ -56,7 +56,7 @@ sdui-bff/
   - When `LAYOUT_ENGINE_URL` is unset, `sdui-bff` starts cleanly on `:8085` with zero external dependencies.
   - When `LAYOUT_ENGINE_URL` is set (e.g., `http://localhost:8090` or `http://layout-engine:8090` in Docker Compose), `layoutclient.Client` forwards targeting headers (`X-Tenant-ID`, `X-Platform`, `X-City`, `X-User-Segment`, `X-Window-Class`) and falls back gracefully to standalone vertical rendering on any error or `404`.
 - **Brand, Path & Gitignore Hygiene**:
-  - Strictly use Abeta showcase brands (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`). Never introduce third-party brand names or local filesystem paths.
+  - Strictly use Abeta showcase brands (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`, `Abeta Pay`). Never introduce third-party brand names or local filesystem paths.
   - Keep `/sdui-bff` anchored in `.gitignore` so `cmd/sdui-bff/` is never ignored.
 
 ---

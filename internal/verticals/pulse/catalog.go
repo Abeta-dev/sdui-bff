@@ -2,6 +2,7 @@ package pulse
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/actions"
@@ -91,6 +92,57 @@ func buildEarlyBirdNudge(city string, spotlight eventSpec) snippets.SnippetEnvel
 			"vertical": verticalID,
 			"nudge_id": "pulse_early_bird_nudge",
 			"city":     city,
+		}).
+		Build()
+}
+
+func buildEventEPassPreviewBlock(evt eventSpec, city string) snippets.SnippetEnvelope {
+	ratingVal := 4.8
+	if fields := strings.Fields(evt.Rating); len(fields) > 0 {
+		if parsed, err := strconv.ParseFloat(fields[0], 64); err == nil && parsed > 0 {
+			ratingVal = parsed
+		}
+	}
+
+	earlyBirdAlert := atoms.NewAlertBanner(
+		"pulse_detail_early_bird_alert",
+		"Early-Bird Tier Pricing Active",
+		fmt.Sprintf("Reserve %s seats in %s before tier pricing closes — instant QR e-pass delivered.", evt.Title, city),
+		atoms.VariantWarning,
+	)
+
+	rating := atoms.NewRating("pulse_event_rating_"+evt.ID, ratingVal, 5)
+	rating.ReviewCount = atoms.IntPtr(1240)
+	rating.Label = "Verified Attendee Rating"
+
+	qrPayload := fmt.Sprintf("abeta-pulse://epass/%s?city=%s&venue=%s", evt.ID, city, evt.Venue)
+	qr := atoms.NewQrCode("pulse_epass_qr_"+evt.ID, qrPayload, "Mobile E-Pass Preview · "+evt.Badge, 156)
+	qr.Caption = fmt.Sprintf("Fast-lane QR entry at %s · %s", evt.Venue, evt.Schedule)
+
+	root := snippets.CardNode(
+		cardLayout(),
+		snippets.VStack(
+			theming.SpacingMD.Dp(),
+			snippets.AlertBannerNode(earlyBirdAlert).WithNodeID("pulse_early_bird_alert_node"),
+			snippets.RatingNode(rating).WithNodeID("pulse_rating_node"),
+			snippets.DividerNode(atoms.DividerAtom{
+				ThicknessDp: atoms.Float64Ptr(1),
+				Color:       atoms.ColorRef(theming.ColorDivider),
+			}),
+			snippets.QrCodeNode(qr).WithNodeID("pulse_epass_qr_node").WithContentAlignment(snippets.ComposedAlignCenter),
+		),
+	).WithNodeID("pulse_epass_preview_root")
+
+	return snippets.NewComposedBlockSnippet("pulse_epass_preview_block", "pulse_epass_"+evt.ID, root).
+		WithRecipeName("event_epass_preview").
+		WithMotion(atoms.MotionSpec{
+			Enter:         atoms.MotionTransitionSlideUp,
+			DurationToken: atoms.MotionDurationNormal,
+		}).
+		WithTracking("composed_recipe_viewed", map[string]any{
+			"vertical": verticalID,
+			"recipe":   "event_epass_preview",
+			"event_id": evt.ID,
 		}).
 		Build()
 }

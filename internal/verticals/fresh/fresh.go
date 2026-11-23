@@ -124,6 +124,7 @@ func (m *Module) RenderScreen(ctx context.Context, req domain.ScreenRequest) (sn
 	nudgeSnippet := buildFlashNudgeSnippet(city)
 	bannerSnippet := buildPromoBannerSnippet(city, filter, query, len(filtered), orderCount)
 	loyaltySnippet := buildLoyaltyComposedSnippet(orderCount)
+	deliverySummarySnippet := buildDeliverySummaryComposedBlock(city)
 
 	var catalogSnippet snippets.SnippetEnvelope
 	if len(filtered) == 0 {
@@ -171,7 +172,7 @@ func (m *Module) RenderScreen(ctx context.Context, req domain.ScreenRequest) (sn
 				"result_count": strconv.Itoa(len(filtered)),
 			},
 		})).
-		AddSnippets(headerSnippet, marqueeSnippet, searchSnippet, chipsSnippet, nudgeSnippet, bannerSnippet, catalogSnippet, loyaltySnippet).
+		AddSnippets(headerSnippet, marqueeSnippet, searchSnippet, chipsSnippet, nudgeSnippet, bannerSnippet, catalogSnippet, loyaltySnippet, deliverySummarySnippet).
 		WithFloatingCart(snippets.FloatingCartSpec{
 			Label:                      "Express Cart",
 			EtaBadge:                   &etaBadge,

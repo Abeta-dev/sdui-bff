@@ -214,6 +214,7 @@ func (m *Module) renderHome(req domain.ScreenRequest) snippets.PageResponse {
 	marqueeStrip := buildMarqueeStrip()
 	chipGroup := buildCategoryChips(filter, query)
 	flashDealBlock := buildFlashDealComposedBlock(allProducts)
+	highlightBlock := buildPriceRatingHighlightBlock(allProducts[0])
 	carousel := buildLightningCarousel(lightning)
 	catalogSnippet := buildCatalogSection(filtered, filter, query)
 
@@ -257,7 +258,7 @@ func (m *Module) renderHome(req domain.ScreenRequest) snippets.PageResponse {
 				"result_count": strconv.Itoa(len(filtered)),
 			},
 		})).
-		AddSnippets(header, marqueeStrip, searchBar, chipGroup, flashDealBlock, carousel, catalogSnippet).
+		AddSnippets(header, marqueeStrip, searchBar, chipGroup, flashDealBlock, highlightBlock, carousel, catalogSnippet).
 		WithFloatingCart(snippets.FloatingCartSpec{
 			Label:                      "Mart Cart",
 			EtaBadge:                   &etaBadge,
@@ -397,7 +398,7 @@ func (m *Module) renderProductDetail(req domain.ScreenRequest) snippets.PageResp
 			SplitPaneEnabled:    true,
 			SecondarySnippetIDs: []string{"mart_reviews_accordion"},
 		}).
-		AddSnippets(heroCard, specsAcc.Build(), reviewsAcc.Build()).
+		AddSnippets(heroCard, buildPriceRatingHighlightBlock(prod), specsAcc.Build(), reviewsAcc.Build()).
 		WithTracking("product_detail_viewed", map[string]any{
 			"vertical": verticalID,
 			"sku":      prod.SKU,

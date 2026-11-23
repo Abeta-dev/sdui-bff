@@ -145,6 +145,32 @@ func TestBitesRestaurantMenuAndLiveOrderTracking(t *testing.T) {
 	if callPayload.Endpoint != "/api/v1/bites/orders" || callPayload.Method != "POST" {
 		t.Errorf("unexpected floating cart call_api: %+v", callPayload)
 	}
+	var foundHighlights bool
+	for _, env := range menuPage.Snippets {
+		if env.SnippetType == snippets.SnippetTypeComposedBlock {
+			cb, decErr := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](env)
+			if decErr != nil {
+				t.Fatalf("decode bites highlights composed_block: %v", decErr)
+			}
+			if cb.RecipeName == "restaurant_highlights_card" {
+				foundHighlights = true
+				rawCB, _ := json.Marshal(cb)
+				for _, wantKind := range []string{
+					snippets.ComposedNodeRating,
+					snippets.ComposedNodePrice,
+					snippets.ComposedNodeRadioGroup,
+					snippets.ComposedNodeKeyValueRow,
+				} {
+					if !strings.Contains(string(rawCB), `"`+wantKind+`"`) {
+						t.Errorf("restaurant_highlights_card missing composed node kind %q", wantKind)
+					}
+				}
+			}
+		}
+	}
+	if !foundHighlights {
+		t.Fatalf("expected restaurant_highlights_card composed_block on bites-restaurant")
+	}
 	assertAllTrackingPropsAreStrings(t, menuPage)
 
 	// Verify bites-order-track also renders a valid 4-step demo tracker before any order is placed.
