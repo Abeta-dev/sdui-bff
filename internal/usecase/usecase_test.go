@@ -2,10 +2,13 @@ package usecase_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/actions"
+	"github.com/abeta-dev/kmp/bff/pkg/sdui/atoms"
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/snippets"
 	"github.com/abeta-dev/sdui-bff/internal/domain"
 	"github.com/abeta-dev/sdui-bff/internal/usecase"
@@ -308,6 +311,97 @@ func TestScreenComposer_UnknownScreenProxyAnd404(t *testing.T) {
 			t.Fatalf("expected context.Canceled, got %v", err)
 		}
 	})
+}
+
+func TestScreenComposer_EnsureComponentIDsAcrossAllVerticalsAndLayoutEngine(t *testing.T) {
+	t.Parallel()
+
+	composer := usecase.NewScreenComposer(nil, allVerticals()...)
+	screens := composer.ListScreens()
+	if len(screens) < 17 {
+		t.Fatalf("expected >= 17 screens across 7 verticals, got %d", len(screens))
+	}
+
+	for _, sc := range screens {
+		page, source, err := composer.GetScreen(context.Background(), domain.ScreenRequest{
+			ScreenID: sc.ScreenID,
+			City:     "Bengaluru",
+		})
+		if err != nil {
+			t.Fatalf("GetScreen(%s) error: %v", sc.ScreenID, err)
+		}
+		if source != usecase.SourceStandalone {
+			t.Errorf("GetScreen(%s) source = %q, want standalone", sc.ScreenID, source)
+		}
+		for i, env := range page.Snippets {
+			if strings.TrimSpace(env.SnippetID) == "" {
+				t.Errorf("%s snippet[%d] (%s) missing snippet_id", sc.ScreenID, i, env.SnippetType)
+			}
+			if env.SnippetType == snippets.SnippetTypeComposedBlock {
+				cb, decodeErr := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](env)
+				if decodeErr != nil {
+					t.Fatalf("%s decode composed_block %s: %v", sc.ScreenID, env.SnippetID, decodeErr)
+				}
+				assertAllNodeIDsNonEmpty(t, sc.ScreenID, cb.Root)
+			}
+		}
+
+		// Verify idempotence: calling EnsureComponentIDs again yields byte-identical JSON.
+		raw1, _ := json.Marshal(page)
+		snippets.EnsureComponentIDs(&page)
+		raw2, _ := json.Marshal(page)
+		if string(raw1) != string(raw2) {
+			t.Errorf("EnsureComponentIDs not already normalized on %s", sc.ScreenID)
+		}
+	}
+
+	// Layout Engine screens with omitted snippet_id, node_id, button id, and action id
+	// must also be deterministically normalized by DefaultScreenComposer.GetScreen.
+	anonAct := actions.NewShowToastAction("", actions.ShowToastPayload{Message: "hi"})
+	anonBtn := atoms.ButtonAtom{Label: "Go", OnClick: &anonAct}
+	cmsRaw := snippets.NewPage("cms-promo", "CMS Promo").
+		AddSnippets(
+			snippets.NewComposedBlockSnippet("", "promo_blk", snippets.VStack(8, snippets.ButtonNode(anonBtn))).Build(),
+		).
+		Build()
+
+	leComposer := usecase.NewScreenComposer(&stubLayoutClient{
+		enabled: true,
+		healthy: true,
+		fetchFn: func(context.Context, string, string, domain.ScreenRequest) (snippets.PageResponse, bool, error) {
+			return cmsRaw, true, nil
+		},
+	}, allVerticals()...)
+
+	normalized, source, err := leComposer.GetScreen(context.Background(), domain.ScreenRequest{ScreenID: "cms-promo"})
+	if err != nil {
+		t.Fatalf("GetScreen(cms-promo) error: %v", err)
+	}
+	if source != usecase.SourceLayoutEngine {
+		t.Fatalf("source = %q, want layout-engine", source)
+	}
+	if len(normalized.Snippets) != 1 || strings.TrimSpace(normalized.Snippets[0].SnippetID) == "" {
+		t.Fatalf("expected deterministic snippet_id on layout-engine screen, got %+v", normalized.Snippets)
+	}
+	cb, err := snippets.DecodeSnippetData[snippets.ComposedBlockSnippetData](normalized.Snippets[0])
+	if err != nil {
+		t.Fatalf("decode normalized composed_block: %v", err)
+	}
+	assertAllNodeIDsNonEmpty(t, "cms-promo", cb.Root)
+	btnNode := cb.Root.Children[0]
+	if btnNode.Button == nil || strings.TrimSpace(btnNode.Button.ID) == "" || btnNode.Button.OnClick == nil || strings.TrimSpace(btnNode.Button.OnClick.ID) == "" {
+		t.Fatalf("expected deterministic button & action IDs, got %+v", btnNode.Button)
+	}
+}
+
+func assertAllNodeIDsNonEmpty(t *testing.T, screenID string, node snippets.ComposedNode) {
+	t.Helper()
+	if strings.TrimSpace(node.NodeID) == "" {
+		t.Errorf("%s composed node kind=%q has empty node_id", screenID, node.Kind)
+	}
+	for _, ch := range node.Children {
+		assertAllNodeIDsNonEmpty(t, screenID, ch)
+	}
 }
 
 func TestDefaultActionExecutor(t *testing.T) {

@@ -1,6 +1,6 @@
 # Abeta SDUI Domain BFF — Full LLM Reference
 
-> `github.com/abeta-dev/sdui-bff` (`Abeta-dev/sdui-bff`, `v0.3.0`, Apache-2.0) is a standalone **Go 1.26.0** Clean Architecture Backend-for-Frontend (BFF) powering **7 stateful Super-App verticals** (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`, `Abeta Pay`) over Server-Driven UI (SDUI) `v1` contracts from `github.com/abeta-dev/kmp/bff@v0.5.0` (**28 Wire Atoms** / **30 Compose UI Atoms** / **29 ComposedNodeKinds**) and `github.com/abeta-dev/go-libs@v0.4.0`. Default port: `:8085`.
+> `github.com/abeta-dev/sdui-bff` (`Abeta-dev/sdui-bff`, `v0.4.0`, Apache-2.0) is a standalone **Go 1.26.0** Clean Architecture Backend-for-Frontend (BFF) powering **7 stateful Super-App verticals** (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`, `Abeta Pay`) over Server-Driven UI (SDUI) `v1` contracts from `github.com/abeta-dev/kmp/bff@v0.6.0` (**29 Wire Atoms** / **31 Compose UI Atoms** / **36 ComposedNodeKinds**, Express Quick-Commerce `molecules`, deterministic `EnsureComponentIDs`, and shared `analytics` DTOs) and `github.com/abeta-dev/go-libs@v0.4.0`. Default port: `:8085`.
 
 Live self-documentation served directly by the binary:
 - `GET /llms.txt` — `text/plain; charset=utf-8` (`llmstxt.org` index, embedded from repository root `llms.txt`)
@@ -14,9 +14,9 @@ Live self-documentation served directly by the binary:
 
 | Repository | Responsibility | Runtime / Default Port |
 | :--- | :--- | :--- |
-| `Abeta-dev/kmp` | Kotlin Multiplatform + Compose Multiplatform SDUI Client Kit (`v0.5.0` wire contracts: 28 Wire Atoms / 30 Compose UI Atoms / 29 ComposedNodeKinds incl. `CountdownAtom` and 12 extended atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`, 21 canonical SnippetTypes incl. `swipe_deck`/`search_bar`/`chip_group`/`product_card`/`nudge_bar`/`marquee_strip`/`order_tracker`/`composed_block`, 18 ActionTypes, 7 ambient `MotionLoopEffect`s; `:sample-app` 7-in-1 Showcase; `:storybook` 20 stories; `:watch-companion`) | Android · iOS · macOS · Desktop JVM · WasmJS · watchOS · Wear OS |
+| `Abeta-dev/kmp` | Kotlin Multiplatform + Compose Multiplatform SDUI Client Kit (`v0.6.0` wire contracts: 29 Wire Atoms / 31 Compose UI Atoms / 36 ComposedNodeKinds incl. `CountdownAtom`, `MediaPagerAtom`, and 12 extended atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`, 21 canonical SnippetTypes incl. sticky `search_bar`/`swipe_deck`/`chip_group`/`product_card`/`nudge_bar`/`marquee_strip`/`order_tracker`/`composed_block`, Express `molecules`, `EnsureComponentIDs`, batched `analytics` DTOs, 18 ActionTypes, 7 ambient `MotionLoopEffect`s; `:sample-app` 7-in-1 Showcase; `:storybook` 20 stories; `:watch-companion`) | Android · iOS · macOS · Desktop JVM · WasmJS · watchOS · Wear OS |
 | `Abeta-dev/layout-engine` | Multi-tenant Dynamic SDUI Layout Engine & Visual Layout Studio (`/studio`): rule targeting, UTC scheduling, dynamic slotting, immutable snapshots, rollback, fallback | Go service on `:8090` (SQLite WAL or PostgreSQL 17) |
-| `Abeta-dev/sdui-bff` *(this repo)* | Stateful Multi-Vertical Domain BFF (`v0.3.0`): 7 OCP `VerticalModule` implementations, live search/filtering, mutex-protected state transitions, `follow_up_actions` orchestration, optional Layout Engine hydration | Go 1.26.0 service on `:8085` (zero-dependency standalone or integrated via `LAYOUT_ENGINE_URL`) |
+| `Abeta-dev/sdui-bff` *(this repo)* | Stateful Multi-Vertical Domain BFF (`v0.4.0`): 7 OCP `VerticalModule` implementations, Express Quick-Commerce molecules, deterministic `EnsureComponentIDs`, batched analytics (`POST /api/v1/analytics/events`, `GET /api/v1/analytics/summary`), live search/filtering, mutex-protected state transitions, `follow_up_actions` orchestration, optional Layout Engine hydration, and unified `CI Quality Gate` | Go 1.26.0 service on `:8085` (zero-dependency standalone or integrated via `LAYOUT_ENGINE_URL`) |
 
 ```text
 +-----------------------------------+        v1 SDUI JSON (ginmw.Envelope)        +----------------------------------------+
@@ -54,10 +54,12 @@ sdui-bff/
 ├── llms_embed_test.go           # Embedded parity & hygiene tests (required for Go 1.26 -cover)
 ├── cmd/sdui-bff/                # Entrypoint, env config, OCP vertical registration, HTTP/2 & h2c, graceful shutdown
 ├── internal/
-│   ├── domain/                  # Pure models, sentinel errors, ports + arch_test.go purity guard
-│   ├── usecase/                 # DefaultScreenComposer (hydration + fallback) & DefaultActionExecutor
-│   ├── handler/                 # Gin router, middleware (Brotli/Gzip, ETag), OpenAPI 3.1, /llms.txt, vertical routes
-│   ├── infra/layoutclient/      # Optional HTTP client for Abeta-dev/layout-engine
+│   ├── domain/                  # Pure models, sentinel errors, ports (incl. AnalyticsStore, AnalyticsService) + arch_test.go
+│   ├── usecase/                 # DefaultScreenComposer (EnsureComponentIDs + hydration + fallback), DefaultActionExecutor, AnalyticsService
+│   ├── handler/                 # Gin router, middleware (Brotli/Gzip, ETag), OpenAPI 3.1, /llms.txt, analytics & vertical routes
+│   ├── infra/
+│   │   ├── analyticsstore/      # Thread-safe in-memory AnalyticsStore (dimension counters + 100-event ring buffer)
+│   │   └── layoutclient/        # Optional HTTP client for Abeta-dev/layout-engine
 │   └── verticals/               # 7 OCP VerticalModule implementations:
 │       ├── fresh/               # Abeta Fresh  (abeta-fresh)
 │       ├── bites/               # Abeta Bites  (abeta-bites)
@@ -105,6 +107,16 @@ type ScreenComposer interface {
 type ActionExecutor interface {
     Execute(ctx context.Context, req ActionExecuteRequest) (ActionResult, error)
 }
+
+type AnalyticsStore interface {
+    RecordBatch(ctx context.Context, req analytics.BatchRequest) (analytics.IngestResponse, error)
+    GetSummary(ctx context.Context) (analytics.Summary, error)
+}
+
+type AnalyticsService interface {
+    IngestBatch(ctx context.Context, req analytics.BatchRequest) (analytics.IngestResponse, error)
+    Summary(ctx context.Context) (analytics.Summary, error)
+}
 ```
 
 ### Open/Closed (`OCP`) `VerticalModule` Pattern
@@ -138,10 +150,11 @@ type ActionExecutor interface {
 - Forwarded targeting headers: `X-Tenant-ID` (explicit header or owning vertical's `TenantID`), `X-Platform`, `X-City` (`?city=` query overrides `X-City`), `X-User-Segment`, `X-Window-Class`.
 - Safety bounds: `5s` screen fetch timeout, `1.5s` `/healthz` readiness check timeout, `4 MiB` (`4 << 20`) `io.LimitReader` response body cap.
 
-### Non-Negotiable KMP Wire Invariants (`github.com/abeta-dev/kmp/bff@v0.5.0`)
-1. **Direct v1 Contract Consumption**: Always construct screens and triggers using `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` (**28 Wire Atoms** / **30 Compose UI Atoms** incl. `CountdownAtom` and 12 extended production atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`, **21 canonical SnippetTypes** incl. `nudge_bar`/`marquee_strip`/`order_tracker`/`composed_block` Atomic Snippet Molding with **29 ComposedNodeKinds**, **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and `FloatingCartSpec` Free-Delivery threshold nudges)—never duplicate wire structs.
-2. **String-Only `TrackingContract.properties` Rule**: On `Abeta-dev/kmp`, `TrackingContract.properties` deserializes strictly as `Map<String, String>` under `kotlinx.serialization`. Every analytics/tracking property map emitted by any vertical or action handler MUST contain **string values only** (convert ints/bools via `strconv.Itoa` / `strconv.FormatBool`). `DefaultActionExecutor` enforces this via `stringifyProperties`.
-3. **Structured `follow_up_actions`**: Mutation responses return `domain.ActionResult{Status, Message, FollowUpActions, Data}` where `follow_up_actions` carries typed `actions.ActionTrigger` objects (`trigger_feedback`, `show_toast`, `navigate`, `track_event`) automatically dispatched by KMP's `RemoteApiCallExecutor`.
+### Non-Negotiable KMP Wire Invariants (`github.com/abeta-dev/kmp/bff@v0.6.0`)
+1. **Direct v1 Contract Consumption**: Always construct screens and triggers using `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,analytics,atoms,molecules,snippets,theming}` (**29 Wire Atoms** / **31 Compose UI Atoms** incl. `CountdownAtom`, `MediaPagerAtom`, and 12 extended production atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`, **21 canonical SnippetTypes** incl. sticky `search_bar`/`nudge_bar`/`marquee_strip`/`order_tracker`/`composed_block` Atomic Snippet Molding with **36 ComposedNodeKinds** + Express Quick-Commerce `molecules`, **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and `FloatingCartSpec` Free-Delivery threshold nudges)—never duplicate wire structs.
+2. **Deterministic Component IDs (`EnsureComponentIDs`)**: `DefaultScreenComposer.GetScreen` invokes `snippets.EnsureComponentIDs(&page)` on every returned page across all 7 verticals and Layout Engine responses so every snippet, composed node, button, image, media pager, and action trigger carries a stable, non-empty identifier.
+3. **String-Only `TrackingContract.properties` Rule**: On `Abeta-dev/kmp`, `TrackingContract.properties` deserializes strictly as `Map<String, String>` under `kotlinx.serialization`. Every analytics/tracking property map emitted by any vertical or action handler MUST contain **string values only** (convert ints/bools via `strconv.Itoa` / `strconv.FormatBool`). `DefaultActionExecutor` enforces this via `stringifyProperties`.
+4. **Structured `follow_up_actions`**: Mutation responses return `domain.ActionResult{Status, Message, FollowUpActions, Data}` where `follow_up_actions` carries typed `actions.ActionTrigger` objects (`trigger_feedback`, `show_toast`, `navigate`, `track_event`) automatically dispatched by KMP's `RemoteApiCallExecutor`.
 
 ---
 
@@ -165,6 +178,8 @@ type ActionExecutor interface {
   - `navigate`: validates non-empty `payload.route` (400 otherwise) and emits `navigate` follow-up.
   - `submit_form`: emits `trigger_feedback` (`celebration`) + `show_toast` (`success`) + `track_event` (`form_submitted`).
   - Any other `action_type`: executes default handler emitting `track_event` (`action_executed`).
+- `POST /api/v1/analytics/events` — Ingests batched SDUI client analytics (`analytics.BatchRequest`, 1..200 events per batch: `page_open`, `snippet_impression`, `node_impression`, `interaction_click`, `track_event`), auto-fills missing `event_id`/`timestamp_epoch_ms`/`category`, and returns `analytics.IngestResponse` (`accepted`, `dropped`, `server_timestamp_epoch_ms`).
+- `GET /api/v1/analytics/summary` — Returns live aggregated `analytics.Summary` (`total_events`, `by_event_name`, `by_category`, `by_page_id`, `by_component_id`, and chronological `recent_events` bounded at 100 events).
 
 ---
 
@@ -173,7 +188,7 @@ type ActionExecutor interface {
 #### 1. Abeta Fresh — Quick Commerce (`abeta-fresh`, theme `emerald`)
 - **Screens**: `fresh-home`, `store-home` (compatibility alias)
 - **Filters (`?filter=`)**: `all`, `produce`, `dairy`, `bakery`, `snacks`, `drinks`; supports `?q=` search & `?city=` (default `Bengaluru`)
-- **Key Snippets**: `marquee_strip` express perks ticker (`"8-min dispatch"`, `"Free delivery over $15"`, `"Zero surge pricing"`), `search_bar`, `chip_group`, urgency `nudge_bar` (`fresh_flash_nudge` with `420s` `CountdownAtom` + `MotionLoopWiggle` badge), promo `banner`, responsive `product_card` `grid` with `StepperAtom` selectors, server-molded `composed_block`s (`snippets.MoldLoyaltyStampRecipe` stateful punch-card + `express_delivery_summary` with `Select` slot picker, `Badge`, and `KeyValueRow` savings), sticky `FloatingCartSpec` with Free-Delivery threshold (`1500` cents / `$15`, `NudgePrefix: "Add"`, `UnlockedLabel: "FREE 8-min delivery unlocked!"`), empty state with reset action
+- **Key Snippets**: `marquee_strip` express perks ticker (`"8-min dispatch"`, `"Free delivery over $15"`, `"Zero surge pricing"`), **sticky** `search_bar` (`Sticky: true`), auto-advancing hero `MediaPagerAtom` (`express_hero_media_pager`), `chip_group`, reusable `pkg/sdui/molecules` sections (`CategoryGridSection` 3/4/6 cols, `ExpressProductTile` bestsellers w/ `box_alignment` discount/ETA/favorite ribbons + `VariantPickerSheetAction` bottom-sheet pack selector, `ImpulseUpsellRail` horizontal `ScrollRowNode`, and `DeliveryInstructionsCard` with switch/checkbox/notes/tip chips/slider), urgency `nudge_bar` (`fresh_flash_nudge` with `420s` `CountdownAtom` + `MotionLoopWiggle` badge), promo `banner`, responsive `product_card` `grid` with `StepperAtom` selectors, server-molded `composed_block`s (`snippets.MoldLoyaltyStampRecipe` stateful punch-card + `express_delivery_summary` with `Select` slot picker, `Badge`, and `KeyValueRow` savings), sticky `FloatingCartSpec` with Free-Delivery threshold (`1500` cents / `$15`, `NudgePrefix: "Add"`, `UnlockedLabel: "FREE 8-min delivery unlocked!"`), empty state with reset action
 - **Mutations**: `POST /api/v1/fresh/orders/express` and `POST /api/v1/orders/express`
   - Payload (`ExpressOrderRequest`, optional body): `{"vertical":"abeta-fresh","items":{"sku":2},"item_count":3,"total_usd":14.50,"address":"Indiranagar, Bengaluru","coupon":"...","payment":"...","notes":"..."}` (negative `item_count` or item qty -> `400`)
   - State & `follow_up_actions`: generates `FRS-xxxx`, increments `orderCount` displayed in banner and loyalty stamp card, emits `trigger_feedback` (`celebration`) + `show_toast` (`success`).
@@ -269,4 +284,5 @@ docker compose up --build
 ### Verification & Hygiene Rules for Coding Agents
 - Never introduce third-party competitor brand names or machine-specific filesystem paths anywhere (enforced by `./scripts/check_brand_hygiene.sh`).
 - Keep Go 1.26 `-cover` clean: every Go package containing `.go` files MUST include a `_test.go` file.
+- CI aggregates all jobs behind the unified **`CI Quality Gate`** (`ci-quality-gate`) check in `.github/workflows/ci.yml`.
 - Always run `gofmt -w .` and `./scripts/verify_all.sh` after code edits.

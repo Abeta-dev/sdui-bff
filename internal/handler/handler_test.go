@@ -12,10 +12,12 @@ import (
 	"testing"
 
 	"github.com/abeta-dev/go-libs/ginmw"
+	"github.com/abeta-dev/kmp/bff/pkg/sdui/analytics"
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/snippets"
 	sduibff "github.com/abeta-dev/sdui-bff"
 	"github.com/abeta-dev/sdui-bff/internal/domain"
 	"github.com/abeta-dev/sdui-bff/internal/handler"
+	"github.com/abeta-dev/sdui-bff/internal/infra/analyticsstore"
 	"github.com/abeta-dev/sdui-bff/internal/infra/layoutclient"
 	"github.com/abeta-dev/sdui-bff/internal/usecase"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/bites"
@@ -44,9 +46,11 @@ func newTestRouter(layoutURL string, jwtSecret string, rateLimitRPS float64) (*g
 	py := pay.New()
 
 	lc := layoutclient.NewClient(layoutURL, nil)
+	analyticsSvc := usecase.NewAnalyticsService(analyticsstore.NewInMemoryStore(0))
 	deps := handler.Dependencies{
 		Composer:     usecase.NewScreenComposer(lc, f, b, p, m, s, tr, py),
 		Actions:      usecase.NewActionExecutor(),
+		Analytics:    analyticsSvc,
 		LayoutClient: lc,
 		Fresh:        f,
 		Bites:        b,
@@ -128,9 +132,11 @@ func TestOpsAndDocsEndpoints(t *testing.T) {
 		}
 		rawSpec := wSpec.Body.String()
 		for _, token := range []string{
-			"github.com/abeta-dev/kmp/bff@v0.5.0",
-			"28 Wire Atoms",
-			"29 ComposedNodeKinds",
+			"github.com/abeta-dev/kmp/bff@v0.6.0",
+			"29 Wire Atoms",
+			"31 Compose UI Atoms",
+			"36 ComposedNodeKinds",
+			"EnsureComponentIDs",
 			"nudge_bar",
 			"marquee_strip",
 			"order_tracker",
@@ -138,9 +144,12 @@ func TestOpsAndDocsEndpoints(t *testing.T) {
 			"free_delivery_threshold_cents",
 			"TransferRequest",
 			"CardControlRequest",
+			"AnalyticsBatchRequest",
+			"AnalyticsIngestResponse",
+			"AnalyticsSummary",
 		} {
 			if !strings.Contains(rawSpec, token) {
-				t.Errorf("OpenAPI spec missing v0.5.0 contract token %q", token)
+				t.Errorf("OpenAPI spec missing v0.6.0 contract token %q", token)
 			}
 		}
 		paths, _ := spec["paths"].(map[string]any)
@@ -151,6 +160,8 @@ func TestOpsAndDocsEndpoints(t *testing.T) {
 			"/api/v1/screens",
 			"/api/v1/screens/{screenId}",
 			"/api/v1/actions/execute",
+			"/api/v1/analytics/events",
+			"/api/v1/analytics/summary",
 			"/api/v1/orders/express",
 			"/api/v1/fresh/orders/express",
 			"/api/v1/bites/orders",
@@ -561,5 +572,131 @@ func TestOptionalAuthAndRateLimiting(t *testing.T) {
 	})
 	if wAuth.Code != http.StatusOK {
 		t.Fatalf("expected 200 with valid JWT, got %d: %s", wAuth.Code, wAuth.Body.String())
+	}
+}
+
+func TestAnalyticsIngestionAndSummaryEndpoints(t *testing.T) {
+	t.Parallel()
+	router, _ := newTestRouter("", "", 0)
+
+	// Initial empty summary
+	wInit := doJSONRequest(router, http.MethodGet, "/api/v1/analytics/summary", "", nil)
+	if wInit.Code != http.StatusOK {
+		t.Fatalf("GET /api/v1/analytics/summary status = %d, body = %s", wInit.Code, wInit.Body.String())
+	}
+	var initEnv struct {
+		Success bool              `json:"success"`
+		Data    analytics.Summary `json:"data"`
+	}
+	if err := json.Unmarshal(wInit.Body.Bytes(), &initEnv); err != nil {
+		t.Fatalf("unmarshal initial summary: %v", err)
+	}
+	if !initEnv.Success || initEnv.Data.TotalEvents != 0 || len(initEnv.Data.RecentEvents) != 0 {
+		t.Fatalf("unexpected initial analytics summary: %+v", initEnv)
+	}
+
+	// Ingest batched page_open, snippet_impression, node_impression, interaction_click events
+	batchPayload := `{
+		"session_id": "sess_e2e_1",
+		"user_id": "usr_fresh_1",
+		"platform": "ios",
+		"app_version": "0.6.0",
+		"events": [
+			{
+				"event_name": "page_open",
+				"page_id": "fresh-home",
+				"component_id": "fresh-home",
+				"properties": {"city": "Bengaluru"}
+			},
+			{
+				"event_name": "snippet_impression",
+				"page_id": "fresh-home",
+				"snippet_id": "fresh_hero_media_block",
+				"component_id": "fresh_hero_media_block"
+			},
+			{
+				"event_name": "node_impression",
+				"page_id": "fresh-home",
+				"snippet_id": "fresh_bestsellers_block",
+				"component_id": "tile_avocados",
+				"properties": {"molecule": "express_product_tile"}
+			},
+			{
+				"event_name": "interaction_click",
+				"page_id": "fresh-home",
+				"snippet_id": "fresh_bestsellers_block",
+				"component_id": "tile_avocados_variant_chip",
+				"action_id": "open_fresh_avocado_variants",
+				"action_type": "open_dialog"
+			}
+		]
+	}`
+
+	wIngest := doJSONRequest(router, http.MethodPost, "/api/v1/analytics/events", batchPayload, nil)
+	if wIngest.Code != http.StatusOK {
+		t.Fatalf("POST /api/v1/analytics/events status = %d, body = %s", wIngest.Code, wIngest.Body.String())
+	}
+	var ingestEnv struct {
+		Success bool                     `json:"success"`
+		Data    analytics.IngestResponse `json:"data"`
+	}
+	if err := json.Unmarshal(wIngest.Body.Bytes(), &ingestEnv); err != nil {
+		t.Fatalf("unmarshal ingest response: %v", err)
+	}
+	if !ingestEnv.Success || ingestEnv.Data.Accepted != 4 || ingestEnv.Data.Dropped != 0 || ingestEnv.Data.ServerTimestampEpochMs <= 0 {
+		t.Fatalf("unexpected ingest response: %+v", ingestEnv)
+	}
+
+	// Verify live aggregated summary
+	wSummary := doJSONRequest(router, http.MethodGet, "/api/v1/analytics/summary", "", nil)
+	if wSummary.Code != http.StatusOK {
+		t.Fatalf("GET /api/v1/analytics/summary status = %d, body = %s", wSummary.Code, wSummary.Body.String())
+	}
+	var summaryEnv struct {
+		Success bool              `json:"success"`
+		Data    analytics.Summary `json:"data"`
+	}
+	if err := json.Unmarshal(wSummary.Body.Bytes(), &summaryEnv); err != nil {
+		t.Fatalf("unmarshal summary: %v", err)
+	}
+	sum := summaryEnv.Data
+	if !summaryEnv.Success || sum.TotalEvents != 4 || len(sum.RecentEvents) != 4 {
+		t.Fatalf("unexpected summary totals: %+v", summaryEnv)
+	}
+	if sum.ByEventName[analytics.EventPageOpen] != 1 ||
+		sum.ByEventName[analytics.EventSnippetImpression] != 1 ||
+		sum.ByEventName[analytics.EventNodeImpression] != 1 ||
+		sum.ByEventName[analytics.EventInteractionClick] != 1 {
+		t.Errorf("unexpected by_event_name counters: %+v", sum.ByEventName)
+	}
+	if sum.ByCategory[analytics.CategoryScreen] != 1 ||
+		sum.ByCategory[analytics.CategoryImpression] != 2 ||
+		sum.ByCategory[analytics.CategoryAction] != 1 {
+		t.Errorf("unexpected by_category counters: %+v", sum.ByCategory)
+	}
+	if sum.ByPageID["fresh-home"] != 4 {
+		t.Errorf("unexpected by_page_id: %+v", sum.ByPageID)
+	}
+	if sum.ByComponentID["tile_avocados"] != 1 || sum.ByComponentID["tile_avocados_variant_chip"] != 1 {
+		t.Errorf("unexpected by_component_id: %+v", sum.ByComponentID)
+	}
+
+	// Malformed JSON and invalid empty batch return 400 VALIDATION_ERROR
+	if w := doJSONRequest(router, http.MethodPost, "/api/v1/analytics/events", `{invalid`, nil); w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for malformed analytics JSON, got %d", w.Code)
+	}
+	if w := doJSONRequest(router, http.MethodPost, "/api/v1/analytics/events", `{"events":[]}`, nil); w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for empty analytics batch, got %d", w.Code)
+	}
+
+	// Nil Analytics dependency returns 503 SERVICE_UNAVAILABLE
+	nilRouter := handler.NewRouter(handler.Dependencies{
+		Logger: slog.New(slog.NewJSONHandler(io.Discard, nil)),
+	})
+	if w := doJSONRequest(nilRouter, http.MethodPost, "/api/v1/analytics/events", batchPayload, nil); w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 when Analytics dependency is nil (POST), got %d", w.Code)
+	}
+	if w := doJSONRequest(nilRouter, http.MethodGet, "/api/v1/analytics/summary", "", nil); w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 when Analytics dependency is nil (GET), got %d", w.Code)
 	}
 }

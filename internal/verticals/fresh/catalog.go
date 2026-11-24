@@ -236,6 +236,7 @@ func buildDeliverySummaryComposedBlock(city string) snippets.SnippetEnvelope {
 
 func buildSearchSnippet(query string) snippets.SnippetEnvelope {
 	return snippets.NewSearchBarSnippet("fresh_search_bar", "fresh_search", "Search avocados, A2 milk, sourdough, drinks...").
+		WithSticky(true).
 		WithQuery(query).
 		WithLeadingIcon(atoms.NewIcon("search", 20, theming.ColorTextSecondary)).
 		WithSubmitLabel("Search").
@@ -246,6 +247,11 @@ func buildSearchSnippet(query string) snippets.SnippetEnvelope {
 			Route: screenHome,
 		})).
 		WithLayout(sectionLayout()).
+		WithTracking("snippet_impression", map[string]any{
+			"vertical":   verticalID,
+			"snippet_id": "fresh_search_bar",
+			"sticky":     "true",
+		}).
 		Build()
 }
 

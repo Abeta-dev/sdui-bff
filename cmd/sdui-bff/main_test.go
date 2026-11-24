@@ -127,6 +127,26 @@ func TestBuildServer_LiveRoundTrip(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 on express order, got %d", resp.StatusCode)
 	}
+
+	// 5. POST /api/v1/analytics/events & GET /api/v1/analytics/summary
+	resp, err = http.Post(ts.URL+"/api/v1/analytics/events", "application/json", strings.NewReader(`{"session_id":"main_test","events":[{"event_name":"page_open","page_id":"fresh-home"},{"event_name":"interaction_click","page_id":"fresh-home","component_id":"tile_avocados"}]}`))
+	if err != nil {
+		t.Fatalf("POST /api/v1/analytics/events: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 on analytics ingest, got %d", resp.StatusCode)
+	}
+
+	resp, err = http.Get(ts.URL + "/api/v1/analytics/summary")
+	if err != nil {
+		t.Fatalf("GET /api/v1/analytics/summary: %v", err)
+	}
+	sumBody, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK || !strings.Contains(string(sumBody), `"total_events":2`) {
+		t.Fatalf("unexpected analytics summary response: status=%d body=%s", resp.StatusCode, string(sumBody))
+	}
 }
 
 func TestBuildServer_H2C(t *testing.T) {

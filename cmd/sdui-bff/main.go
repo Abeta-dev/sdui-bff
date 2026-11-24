@@ -17,6 +17,7 @@ import (
 	"github.com/abeta-dev/go-libs/logger"
 	"github.com/abeta-dev/go-libs/shutdown"
 	"github.com/abeta-dev/sdui-bff/internal/handler"
+	"github.com/abeta-dev/sdui-bff/internal/infra/analyticsstore"
 	"github.com/abeta-dev/sdui-bff/internal/infra/layoutclient"
 	"github.com/abeta-dev/sdui-bff/internal/usecase"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/bites"
@@ -141,10 +142,13 @@ func buildServer(cfg appConfig, log *slog.Logger) *http.Server {
 		payMod,
 	)
 	actionExec := usecase.NewActionExecutor()
+	analyticsStore := analyticsstore.NewInMemoryStore(0)
+	analyticsSvc := usecase.NewAnalyticsService(analyticsStore)
 
 	router := handler.NewRouter(handler.Dependencies{
 		Composer:       composer,
 		Actions:        actionExec,
+		Analytics:      analyticsSvc,
 		LayoutClient:   layoutClient,
 		Fresh:          freshMod,
 		Bites:          bitesMod,

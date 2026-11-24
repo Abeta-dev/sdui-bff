@@ -1,6 +1,6 @@
 ---
 name: abeta-sdui-bff
-description: Develop, test, and operate the Abeta Multi-Vertical SDUI Domain BFF (github.com/abeta-dev/sdui-bff v0.3.0, Go 1.26.0 Clean Architecture) powering 7 stateful vertical apps (Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade, Abeta Pay) over github.com/abeta-dev/kmp/bff@v0.5.0 and github.com/abeta-dev/go-libs@v0.4.0 with optional Abeta-dev/layout-engine hydration.
+description: Develop, test, and operate the Abeta Multi-Vertical SDUI Domain BFF (github.com/abeta-dev/sdui-bff v0.4.0, Go 1.26.0 Clean Architecture) powering 7 stateful vertical apps (Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade, Abeta Pay) over github.com/abeta-dev/kmp/bff@v0.6.0 and github.com/abeta-dev/go-libs@v0.4.0 with optional Abeta-dev/layout-engine hydration.
 ---
 
 # Abeta SDUI Domain BFF (`abeta-dev/sdui-bff`)
@@ -15,15 +15,17 @@ Use this skill whenever designing, implementing, debugging, or reviewing feature
 sdui-bff/
 ├── cmd/sdui-bff/              # Entrypoint, env config, OCP VerticalModule wiring, HTTP/2 & h2c server, graceful shutdown
 ├── internal/
-│   ├── domain/                # Pure entities, sentinel errors, ports (VerticalModule, LayoutEngineClient, ScreenComposer, ActionExecutor) + arch_test.go
-│   ├── usecase/               # ScreenComposer (Layout Engine hydration + VerticalModule fallback) & ActionExecutor
-│   ├── handler/               # Gin router, vertical endpoints, OpenAPI 3.1 (/openapi.json, /docs), Brotli/Gzip, ETag, health probes
-│   ├── infra/layoutclient/    # Optional HTTP client for Abeta-dev/layout-engine (5s timeout, 4 MiB cap, targeting headers)
-│   └── verticals/             # 7 OCP VerticalModule packages: fresh, bites, pulse, mart, spark, trade, pay
+│   ├── domain/                # Pure entities, sentinel errors, ports (VerticalModule, LayoutEngineClient, ScreenComposer, ActionExecutor, AnalyticsStore, AnalyticsService) + arch_test.go
+│   ├── usecase/               # ScreenComposer (EnsureComponentIDs + Layout Engine + Fallback), ActionExecutor, AnalyticsService
+│   ├── handler/               # Gin router, vertical & analytics endpoints, OpenAPI 3.1 (/openapi.json, /docs), Brotli/Gzip, ETag, health probes
+│   ├── infra/
+│   │   ├── analyticsstore/    # Thread-safe in-memory AnalyticsStore (counters + 100-event ring buffer)
+│   │   └── layoutclient/      # Optional HTTP client for Abeta-dev/layout-engine (5s timeout, 4 MiB cap, targeting headers)
+│   └── verticals/             # 7 OCP VerticalModule packages: fresh (Express molecules), bites, pulse, mart, spark, trade, pay
 ├── scripts/                   # check_brand_hygiene.sh, verify_all.sh
 ├── docs/                      # architecture.md, verticals-guide.md
 ├── agents/                    # bff-engineer.md Code Owner persona
-└── .github/workflows/         # ci.yml (hygiene + gitleaks CLI, race tests, static build, Docker build), release.yml
+└── .github/workflows/         # ci.yml (hygiene + gitleaks CLI, race tests, static build, Docker build + CI Quality Gate), release.yml
 ```
 
 ### Dependency Rule Enforcement
@@ -34,9 +36,9 @@ sdui-bff/
 
 ## 2. Wire Contract & KMP Parity Rules
 
-1. **Reuse `abeta-dev/kmp/bff@v0.5.0` Contracts Directly**:
-   - Import `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,atoms,snippets,theming}` directly — never duplicate wire structs.
-   - Maintain full parity with all **28 Wire Atoms** / **30 Compose UI Atoms** (incl. `CountdownAtom` & the 12 extended atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`), **21 canonical SnippetTypes** (including `swipe_deck`, `search_bar`, `chip_group`, `product_card`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block` with **29 `ComposedNodeKind`s**), **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks.
+1. **Reuse `abeta-dev/kmp/bff@v0.6.0` Contracts Directly**:
+   - Import `github.com/abeta-dev/kmp/bff/pkg/sdui/{actions,analytics,atoms,molecules,snippets,theming}` directly — never duplicate wire structs.
+   - Maintain full parity with all **29 Wire Atoms** / **31 Compose UI Atoms** (incl. `CountdownAtom`, `MediaPagerAtom`, & the 12 extended atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`), **21 canonical SnippetTypes** (including sticky `search_bar`, `swipe_deck`, `chip_group`, `product_card`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block` with **36 `ComposedNodeKind`s** plus Express Quick-Commerce `molecules`), deterministic `snippets.EnsureComponentIDs`, batched analytics (`POST /api/v1/analytics/events`, `GET /api/v1/analytics/summary`), **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks.
 2. **Envelope Compatibility**:
    - Wrap all `/api/v1/*` JSON responses in `github.com/abeta-dev/go-libs@v0.4.0` `ginmw.Envelope` (`ginmw.RespondSuccess`, `ginmw.RespondError`, `ginmw.RespondErrorWithDetail`).
 3. **KMP String-Only Tracking Property Rule**:

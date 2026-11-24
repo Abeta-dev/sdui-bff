@@ -64,8 +64,23 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 			t.Fatalf("unexpected floating cart nudge labels: prefix=%q unlocked=%q", page.FloatingCart.NudgePrefix, page.FloatingCart.UnlockedLabel)
 		}
 
-		var gridFound, marqueeFound, nudgeFound, loyaltyFound, deliverySummaryFound bool
+		var (
+			gridFound                 bool
+			marqueeFound              bool
+			nudgeFound                bool
+			stickySearchFound         bool
+			heroMediaPagerFound       bool
+			categoryGridFound         bool
+			expressProductGridFound   bool
+			upsellRailFound           bool
+			deliveryInstructionsFound bool
+			loyaltyFound              bool
+			deliverySummaryFound      bool
+		)
 		for _, env := range page.Snippets {
+			if env.SnippetID == "" {
+				t.Errorf("snippet of type %q missing snippet_id", env.SnippetType)
+			}
 			switch env.SnippetType {
 			case snippets.SnippetTypeHeader:
 				hdr, err := snippets.DecodeSnippetData[snippets.HeaderSnippetData](env)
@@ -74,6 +89,10 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 				}
 				if hdr.TrailingTag == nil || hdr.TrailingTag.Label != "Mumbai" {
 					t.Errorf("expected city badge Mumbai, got %+v", hdr.TrailingTag)
+				}
+			case snippets.SnippetTypeSearchBar:
+				if env.Sticky {
+					stickySearchFound = true
 				}
 			case snippets.SnippetTypeMarqueeStrip:
 				marqueeFound = true
@@ -104,7 +123,62 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 				if err != nil {
 					t.Fatalf("decode composed_block: %v", err)
 				}
+				assertComposedNodeIDsPopulated(t, cb.Root)
+				rawCB, _ := json.Marshal(cb)
+				rawStr := string(rawCB)
 				switch cb.RecipeName {
+				case "express_hero_media_pager":
+					heroMediaPagerFound = true
+					if cb.Root.Kind != snippets.ComposedNodeMediaPager || cb.Root.MediaPager == nil || len(cb.Root.MediaPager.Items) != 3 {
+						t.Errorf("unexpected express_hero_media_pager: %+v", cb.Root)
+					}
+					if cb.Root.MediaPager != nil && (cb.Root.MediaPager.AutoAdvanceMs == nil || *cb.Root.MediaPager.AutoAdvanceMs != 4500) {
+						t.Errorf("expected hero media pager auto_advance_ms=4500, got %+v", cb.Root.MediaPager.AutoAdvanceMs)
+					}
+				case "express_category_grid":
+					categoryGridFound = true
+					for _, wantToken := range []string{`"grid"`, `"box"`, `"top_end"`, `"Fruits \u0026 Veg"`, `"compact":3`, `"medium":4`, `"expanded":6`} {
+						if !strings.Contains(rawStr, wantToken) {
+							t.Errorf("express_category_grid missing expected token %q", wantToken)
+						}
+					}
+				case "express_product_grid":
+					expressProductGridFound = true
+					for _, wantToken := range []string{
+						`"box"`,
+						`"box_alignment":"top_start"`,
+						`"box_alignment":"top_end"`,
+						`"box_alignment":"bottom_start"`,
+						`"open_dialog"`,
+						`"bottom_sheet"`,
+						`"express_variant_picker_sheet"`,
+						`"radio_group"`,
+						`"variant-picker-avocados"`,
+					} {
+						if !strings.Contains(rawStr, wantToken) {
+							t.Errorf("express_product_grid missing expected token %q", wantToken)
+						}
+					}
+				case "express_impulse_upsell_rail":
+					upsellRailFound = true
+					for _, wantToken := range []string{`"scroll_row"`, `"Before You Checkout"`, `"Sparkling Yuzu Water"`} {
+						if !strings.Contains(rawStr, wantToken) {
+							t.Errorf("express_impulse_upsell_rail missing expected token %q", wantToken)
+						}
+					}
+				case "express_delivery_instructions":
+					deliveryInstructionsFound = true
+					for _, wantKind := range []string{
+						snippets.ComposedNodeSwitch,
+						snippets.ComposedNodeCheckbox,
+						snippets.ComposedNodeTextField,
+						snippets.ComposedNodeChip,
+						snippets.ComposedNodeSlider,
+					} {
+						if !strings.Contains(rawStr, `"`+wantKind+`"`) {
+							t.Errorf("express_delivery_instructions missing composed node kind %q", wantKind)
+						}
+					}
 				case "loyalty_stamp_card":
 					loyaltyFound = true
 					if cb.BlockID != "abeta_fresh_club" {
@@ -112,9 +186,8 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 					}
 				case "express_delivery_summary":
 					deliverySummaryFound = true
-					rawCB, _ := json.Marshal(cb)
 					for _, wantKind := range []string{snippets.ComposedNodeSelect, snippets.ComposedNodeKeyValueRow, snippets.ComposedNodeBadge} {
-						if !strings.Contains(string(rawCB), `"`+wantKind+`"`) {
+						if !strings.Contains(rawStr, `"`+wantKind+`"`) {
 							t.Errorf("express_delivery_summary missing composed node kind %q", wantKind)
 						}
 					}
@@ -142,11 +215,36 @@ func TestFreshRenderCatalogAndStoreAlias(t *testing.T) {
 				}
 			}
 		}
-		if !gridFound || !marqueeFound || !nudgeFound || !loyaltyFound || !deliverySummaryFound {
-			t.Fatalf("missing expected snippets on %s: grid=%v marquee=%v nudge=%v loyalty=%v deliverySummary=%v", screenID, gridFound, marqueeFound, nudgeFound, loyaltyFound, deliverySummaryFound)
+		if !gridFound || !marqueeFound || !nudgeFound || !stickySearchFound ||
+			!heroMediaPagerFound || !categoryGridFound || !expressProductGridFound ||
+			!upsellRailFound || !deliveryInstructionsFound || !loyaltyFound || !deliverySummaryFound {
+			t.Fatalf(
+				"missing expected snippets on %s: grid=%v marquee=%v nudge=%v stickySearch=%v heroPager=%v categoryGrid=%v productGrid=%v upsellRail=%v deliveryInst=%v loyalty=%v deliverySummary=%v",
+				screenID, gridFound, marqueeFound, nudgeFound, stickySearchFound,
+				heroMediaPagerFound, categoryGridFound, expressProductGridFound,
+				upsellRailFound, deliveryInstructionsFound, loyaltyFound, deliverySummaryFound,
+			)
+		}
+
+		// Verify EnsureComponentIDs is idempotent on the rendered page.
+		before, _ := json.Marshal(page)
+		snippets.EnsureComponentIDs(&page)
+		after, _ := json.Marshal(page)
+		if string(before) != string(after) {
+			t.Errorf("EnsureComponentIDs was not idempotent on %s", screenID)
 		}
 
 		assertAllTrackingPropsAreStrings(t, page)
+	}
+}
+
+func assertComposedNodeIDsPopulated(t *testing.T, node snippets.ComposedNode) {
+	t.Helper()
+	if strings.TrimSpace(node.NodeID) == "" {
+		t.Errorf("composed node of kind %q has empty node_id", node.Kind)
+	}
+	for _, ch := range node.Children {
+		assertComposedNodeIDsPopulated(t, ch)
 	}
 }
 

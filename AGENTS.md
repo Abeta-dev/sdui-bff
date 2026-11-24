@@ -34,8 +34,10 @@ All changes MUST satisfy these invariants:
 2. **Open/Closed (`OCP`) `VerticalModule` Pattern**:
    - Every vertical app (**Abeta Fresh**, **Abeta Bites**, **Abeta Pulse**, **Abeta Mart**, **Abeta Spark**, **Abeta Trade**, **Abeta Pay**) implements `domain.VerticalModule` (`Descriptor()`, `Screens()`, `CanHandleScreen(screenID)`, `RenderScreen(ctx, req)`) under `internal/verticals/<vertical>/`.
    - Never add monolithic `switch screenID` blocks inside `internal/usecase` or `internal/handler`. Adding a new vertical must require only implementing `domain.VerticalModule` and registering it in `cmd/sdui-bff`.
-3. **1:1 `abeta-dev/kmp` Wire Protocol Consumption (`v0.5.0`)**:
-   - Emit typed `v1` SDUI contracts directly from `github.com/abeta-dev/kmp/bff@v0.5.0` (`pkg/sdui/{actions,atoms,snippets,theming}` — **28 Wire Atoms** / **30 Compose UI Atoms** incl. the 12 extended production atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`, **21 canonical SnippetTypes** including `swipe_deck`, `search_bar`, `chip_group`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block` with **29 `ComposedNodeKind`s**, **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks).
+3. **1:1 `abeta-dev/kmp` Wire Protocol Consumption (`v0.6.0`)**:
+   - Emit typed `v1` SDUI contracts directly from `github.com/abeta-dev/kmp/bff@v0.6.0` (`pkg/sdui/{actions,analytics,atoms,molecules,snippets,theming}` — **29 Wire Atoms** / **31 Compose UI Atoms** incl. `MediaPagerAtom` and the 12 extended production atoms `QrCode`, `OtpInput`, `Select`, `SegmentedControl`, `RadioGroup`, `Rating`, `Price`, `Badge`, `AlertBanner`, `StatTile`, `KeyValueRow`, `Chip`, **21 canonical SnippetTypes** including sticky `search_bar`, `swipe_deck`, `chip_group`, `nudge_bar`, `marquee_strip`, `order_tracker`, and server-molded `composed_block` with **36 `ComposedNodeKind`s** plus Express Quick-Commerce molecules from `pkg/sdui/molecules`, **18 ActionTypes**, **7 ambient `MotionLoopEffect`s**, and Free-Delivery threshold `FloatingCartSpec` docks).
+   - Normalize every returned `PageResponse` in `internal/usecase/composer.go` via **`snippets.EnsureComponentIDs(&page)`** so 100% of screens carry deterministic, stable component IDs.
+   - Ingest batched client analytics via `POST /api/v1/analytics/events` and expose live telemetry via `GET /api/v1/analytics/summary` backed by `internal/domain.AnalyticsStore`, `internal/usecase.AnalyticsService`, and thread-safe `internal/infra/analyticsstore.InMemoryStore` (100-event ring buffer).
    - Wrap all `/api/v1/*` JSON responses in `github.com/abeta-dev/go-libs@v0.4.0` `ginmw.Envelope` (`ginmw.RespondSuccess`, `ginmw.RespondError`, `ginmw.RespondErrorWithDetail`).
    - Return structured `follow_up_actions` (`[]actions.ActionTrigger`) on mutation responses so the KMP `RemoteApiCallExecutor` triggers celebrations, toasts, and navigation seamlessly.
 4. **KMP String-Only Tracking Property Rule**:
@@ -51,6 +53,7 @@ All changes MUST satisfy these invariants:
    - Use strictly Abeta showcase brands (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`, `Abeta Pay`) and `abeta-dev` / `Abeta-dev`.
    - Always anchor `/sdui-bff` in `.gitignore` so `cmd/sdui-bff/` is never ignored.
    - Secret scanning in CI MUST use the MIT-licensed `gitleaks` CLI `v8.30.1` verified by SHA-256 (`551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb`) — never paid-gated GitHub Actions wrappers.
+   - CI MUST aggregate all required checks behind the final **`CI Quality Gate`** (`ci-quality-gate`) job in `.github/workflows/ci.yml` (`if: always()`, failing if any upstream job did not succeed) for single-check branch protection.
 
 ---
 

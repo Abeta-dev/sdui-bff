@@ -1,7 +1,7 @@
 github.com/abeta-dev/go-libs v0.4.0 h1:MYmDT5Af3AqUNjGjDSis05y+4lgGD7He2ERj4L8V6fk=
 github.com/abeta-dev/go-libs v0.4.0/go.mod h1:aOZK5Z1dVVUkhrguEyV+ArNaxHIuKAJcB5FbJoYcBZY=
-github.com/abeta-dev/kmp/bff v0.5.0 h1:eB7bhxKfzsBbUe25YJsGCGE20l0Rs/0xOpOQxmTz2Do=
-github.com/abeta-dev/kmp/bff v0.5.0/go.mod h1:BP3WQoCjiSajz2m7s/STmrsCdqjQA0p7IGKv/SQU4JE=
+github.com/abeta-dev/kmp/bff v0.6.0 h1:fpWr1UnHM7oezzwyEW5KdHeM/Hhs0sC4giW4KY2/nWM=
+github.com/abeta-dev/kmp/bff v0.6.0/go.mod h1:BP3WQoCjiSajz2m7s/STmrsCdqjQA0p7IGKv/SQU4JE=
 github.com/andybalholm/brotli v1.3.0 h1:IdkhjSe/+34U+fP7FSR2Q6Poj1hnHUa2GoWmzXJd6qY=
 github.com/andybalholm/brotli v1.3.0/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
 github.com/bytedance/gopkg v0.1.3 h1:TPBSwH8RsouGCBcMBktLt1AymVo2TVsBVCY4b6TnZ/M=

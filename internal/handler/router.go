@@ -13,6 +13,7 @@ import (
 	"github.com/abeta-dev/go-libs/ginmw"
 	"github.com/abeta-dev/go-libs/logger"
 	"github.com/abeta-dev/go-libs/ratelimit"
+	"github.com/abeta-dev/kmp/bff/pkg/sdui/analytics"
 	"github.com/abeta-dev/sdui-bff/internal/domain"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/bites"
 	"github.com/abeta-dev/sdui-bff/internal/verticals/fresh"
@@ -31,6 +32,7 @@ const serviceName = "abeta-sdui-bff"
 type Dependencies struct {
 	Composer       domain.ScreenComposer
 	Actions        domain.ActionExecutor
+	Analytics      domain.AnalyticsService
 	LayoutClient   domain.LayoutEngineClient
 	Fresh          *fresh.Module
 	Bites          *bites.Module
@@ -100,6 +102,8 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	v1.GET("/screens/:screenId", etag, h.getScreen)
 
 	v1.POST("/actions/execute", h.executeAction)
+	v1.POST("/analytics/events", h.ingestAnalyticsEvents)
+	v1.GET("/analytics/summary", h.getAnalyticsSummary)
 	v1.POST("/orders/express", h.placeFreshExpressOrder)
 	v1.POST("/fresh/orders/express", h.placeFreshExpressOrder)
 	v1.POST("/bites/orders", h.placeFoodOrder)
@@ -383,6 +387,37 @@ func (h *bffHandler) updatePayCardControls(c *gin.Context) {
 		return
 	}
 	ginmw.RespondSuccess(c, res)
+}
+
+func (h *bffHandler) ingestAnalyticsEvents(c *gin.Context) {
+	if h.deps.Analytics == nil {
+		ginmw.RespondError(c, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "analytics service unavailable")
+		return
+	}
+	var req analytics.BatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginmw.RespondErrorWithDetail(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid analytics batch payload", err.Error())
+		return
+	}
+	res, err := h.deps.Analytics.IngestBatch(c.Request.Context(), req)
+	if err != nil {
+		respondDomainError(c, err)
+		return
+	}
+	ginmw.RespondSuccess(c, res)
+}
+
+func (h *bffHandler) getAnalyticsSummary(c *gin.Context) {
+	if h.deps.Analytics == nil {
+		ginmw.RespondError(c, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "analytics service unavailable")
+		return
+	}
+	summary, err := h.deps.Analytics.Summary(c.Request.Context())
+	if err != nil {
+		respondDomainError(c, err)
+		return
+	}
+	ginmw.RespondSuccess(c, summary)
 }
 
 func bindOptionalJSON(c *gin.Context, dst any, errMsg string) bool {

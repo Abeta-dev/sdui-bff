@@ -66,7 +66,9 @@ func (c *DefaultScreenComposer) ListScreens() []domain.ScreenSummary {
 }
 
 // GetScreen resolves an SDUI screen by ID, returning the PageResponse alongside a source
-// marker ("layout-engine", "standalone", or "standalone-fallback").
+// marker ("layout-engine", "standalone", or "standalone-fallback"). Every returned page is
+// normalized via snippets.EnsureComponentIDs so all snippets, composed nodes, atoms, and
+// action triggers carry deterministic, stable component identifiers.
 func (c *DefaultScreenComposer) GetScreen(ctx context.Context, req domain.ScreenRequest) (snippets.PageResponse, string, error) {
 	if err := ctx.Err(); err != nil {
 		return snippets.PageResponse{}, "", err
@@ -86,7 +88,7 @@ func (c *DefaultScreenComposer) GetScreen(ctx context.Context, req domain.Screen
 			tenantID := resolveTenantID(req.TenantID, vertical.Descriptor().TenantID)
 			page, ok, err := c.layoutClient.FetchScreen(ctx, tenantID, screenID, req)
 			if err == nil && ok {
-				return page, SourceLayoutEngine, nil
+				return finalizePage(page, SourceLayoutEngine)
 			}
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return snippets.PageResponse{}, "", ctxErr
@@ -96,21 +98,21 @@ func (c *DefaultScreenComposer) GetScreen(ctx context.Context, req domain.Screen
 			if renderErr != nil {
 				return snippets.PageResponse{}, "", renderErr
 			}
-			return fallbackPage, SourceStandaloneFallback, nil
+			return finalizePage(fallbackPage, SourceStandaloneFallback)
 		}
 
 		page, err := vertical.RenderScreen(ctx, req)
 		if err != nil {
 			return snippets.PageResponse{}, "", err
 		}
-		return page, SourceStandalone, nil
+		return finalizePage(page, SourceStandalone)
 	}
 
 	if layoutEnabled {
 		tenantID := resolveTenantID(req.TenantID, defaultProxyTenantID)
 		page, ok, err := c.layoutClient.FetchScreen(ctx, tenantID, screenID, req)
 		if err == nil && ok {
-			return page, SourceLayoutEngine, nil
+			return finalizePage(page, SourceLayoutEngine)
 		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return snippets.PageResponse{}, "", ctxErr
@@ -121,6 +123,11 @@ func (c *DefaultScreenComposer) GetScreen(ctx context.Context, req domain.Screen
 	}
 
 	return snippets.PageResponse{}, "", fmt.Errorf("%w: %s", domain.ErrScreenNotFound, screenID)
+}
+
+func finalizePage(page snippets.PageResponse, source string) (snippets.PageResponse, string, error) {
+	snippets.EnsureComponentIDs(&page)
+	return page, source, nil
 }
 
 func (c *DefaultScreenComposer) findVertical(screenID string) domain.VerticalModule {

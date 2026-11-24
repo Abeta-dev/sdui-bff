@@ -118,3 +118,47 @@ jobs:
           tags: abeta-sdui-bff:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  ci-quality-gate:
+    name: CI Quality Gate
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - hygiene-and-secrets
+      - test-and-race
+      - build-binary
+      - docker-build
+    steps:
+      - name: Evaluate CI Quality Gate
+        run: |
+          echo "========================================================"
+          echo "Evaluating Abeta SDUI Domain BFF CI Quality Gate"
+          echo "  Event: ${{ github.event_name }}"
+          echo "========================================================"
+
+          FAILED=0
+
+          check_job() {
+            local name="$1"
+            local result="$2"
+            if [ "$result" != "success" ]; then
+              echo "FAILED: $name finished with result: $result" >&2
+              FAILED=1
+            else
+              echo "PASSED: $name: success"
+            fi
+          }
+
+          check_job "Brand Hygiene & Secret Scan" "${{ needs.hygiene-and-secrets.result }}"
+          check_job "Go 1.26.x Format, Vet & Race Tests" "${{ needs.test-and-race.result }}"
+          check_job "Static Binary Build (CGO_ENABLED=0)" "${{ needs.build-binary.result }}"
+          check_job "Verify Distroless OCI Container Build" "${{ needs.docker-build.result }}"
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "CI Quality Gate failed because one or more required upstream jobs did not succeed." >&2
+            exit 1
+          fi
+
+          echo "========================================================"
+          echo "All CI Quality Gates satisfied!"
+          echo "========================================================"

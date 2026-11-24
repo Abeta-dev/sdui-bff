@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 
+	"github.com/abeta-dev/kmp/bff/pkg/sdui/analytics"
 	"github.com/abeta-dev/kmp/bff/pkg/sdui/snippets"
 )
 
@@ -33,4 +34,16 @@ type ScreenComposer interface {
 // ActionExecutor handles generic POST /api/v1/actions/execute calls.
 type ActionExecutor interface {
 	Execute(ctx context.Context, req ActionExecuteRequest) (ActionResult, error)
+}
+
+// AnalyticsStore persists ingested client/BFF analytics batches and aggregates live summaries.
+type AnalyticsStore interface {
+	RecordBatch(ctx context.Context, req analytics.BatchRequest) (analytics.IngestResponse, error)
+	GetSummary(ctx context.Context) (analytics.Summary, error)
+}
+
+// AnalyticsService validates, enriches, and exposes live SDUI analytics telemetry.
+type AnalyticsService interface {
+	IngestBatch(ctx context.Context, req analytics.BatchRequest) (analytics.IngestResponse, error)
+	Summary(ctx context.Context) (analytics.Summary, error)
 }

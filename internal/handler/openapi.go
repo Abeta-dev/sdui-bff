@@ -185,8 +185,8 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 		"openapi": openAPIVersion,
 		"info": map[string]any{
 			"title":       name,
-			"version":     "1.2.0",
-			"description": "Abeta Multi-Vertical SDUI Domain BFF (v0.3.0) powered by github.com/abeta-dev/kmp/bff@v0.5.0 (28 Wire Atoms / 30 Compose UI Atoms / 29 ComposedNodeKinds, 21 canonical SDUI snippet types including nudge_bar, marquee_strip, order_tracker, and server-molded composed_block recipes, 18 ActionTypes, 7 ambient MotionLoopEffects, and Free-Delivery threshold FloatingCartSpec docks) across 7 stateful Super-App verticals: Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade, and Abeta Pay with optional Layout Engine hydration.",
+			"version":     "1.3.0",
+			"description": "Abeta Multi-Vertical SDUI Domain BFF (v0.4.0) powered by github.com/abeta-dev/kmp/bff@v0.6.0 (29 Wire Atoms / 31 Compose UI Atoms / 36 ComposedNodeKinds incl. MediaPagerAtom & BoxNode corner alignment, reusable Express Quick-Commerce molecules, deterministic EnsureComponentIDs, batched SDUI Analytics ingestion & live telemetry summary, 21 canonical SDUI snippet types including sticky search_bar, nudge_bar, marquee_strip, order_tracker, and server-molded composed_block recipes, 18 ActionTypes, 7 ambient MotionLoopEffects, and Free-Delivery threshold FloatingCartSpec docks) across 7 stateful Super-App verticals: Abeta Fresh, Abeta Bites, Abeta Pulse, Abeta Mart, Abeta Spark, Abeta Trade, and Abeta Pay with optional Layout Engine hydration.",
 		},
 		"servers": []map[string]any{
 			{"url": "/", "description": "Current SDUI BFF origin"},
@@ -196,6 +196,7 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 			{"name": "Documentation", "description": "OpenAPI 3.1 spec, Scalar UI, and llmstxt.org AI-agent documentation"},
 			{"name": "Discovery", "description": "Super-App catalog and SDUI screen composition"},
 			{"name": "Actions", "description": "Generic SDUI action execution"},
+			{"name": "Analytics", "description": "Batched SDUI client analytics ingestion and live telemetry summary"},
 			{"name": "Abeta Fresh", "description": "8-minute quick-commerce grocery express checkout"},
 			{"name": "Abeta Bites", "description": "Food delivery orders and live prep tracking"},
 			{"name": "Abeta Pulse", "description": "Live events, cinema, comedy, and dining bookings"},
@@ -359,7 +360,40 @@ func mustBuildOpenAPISpec(name string, requireAuth bool) []byte {
 					},
 				},
 			},
-			"/api/v1/actions/execute":      postMutation("Execute a generic SDUI action", "executeAction", "Actions", "ActionExecuteRequest", true),
+			"/api/v1/actions/execute": postMutation("Execute a generic SDUI action", "executeAction", "Actions", "ActionExecuteRequest", true),
+			"/api/v1/analytics/events": map[string]any{
+				"post": map[string]any{
+					"summary":     "Ingest batched SDUI client analytics events",
+					"operationId": "ingestAnalyticsEvents",
+					"tags":        []string{"Analytics"},
+					"security":    apiSecurity,
+					"requestBody": map[string]any{
+						"required": true,
+						"content":  jsonContent(ref("AnalyticsBatchRequest")),
+					},
+					"responses": map[string]any{
+						"200": map[string]any{
+							"description": "Analytics batch ingestion receipt",
+							"content":     jsonContent(envelope(ref("AnalyticsIngestResponse"))),
+						},
+						"400": map[string]any{"description": "Validation error"},
+					},
+				},
+			},
+			"/api/v1/analytics/summary": map[string]any{
+				"get": map[string]any{
+					"summary":     "Fetch live aggregated SDUI analytics telemetry summary",
+					"operationId": "getAnalyticsSummary",
+					"tags":        []string{"Analytics"},
+					"security":    apiSecurity,
+					"responses": map[string]any{
+						"200": map[string]any{
+							"description": "Aggregated counters and bounded 100-event recent ring snapshot",
+							"content":     jsonContent(envelope(ref("AnalyticsSummary"))),
+						},
+					},
+				},
+			},
 			"/api/v1/orders/express":       postMutation("Place an Abeta Fresh express order (compat route)", "placeExpressOrderCompat", "Abeta Fresh", "ExpressOrderRequest", false),
 			"/api/v1/fresh/orders/express": postMutation("Place an Abeta Fresh 8-minute express order", "placeFreshExpressOrder", "Abeta Fresh", "ExpressOrderRequest", false),
 			"/api/v1/bites/orders":         postMutation("Place an Abeta Bites food delivery order", "placeFoodOrder", "Abeta Bites", "ExpressOrderRequest", false),
@@ -415,7 +449,7 @@ func openAPISchemas() map[string]any {
 		},
 		"PageResponse": map[string]any{
 			"type":        "object",
-			"description": "Typed v1 SDUI PageResponse from github.com/abeta-dev/kmp/bff@v0.5.0 (28 Wire Atoms / 29 ComposedNodeKinds, 21 canonical snippet types, adaptive_layout, floating_cart with free-delivery threshold nudges, and string-only tracking)",
+			"description": "Typed v1 SDUI PageResponse from github.com/abeta-dev/kmp/bff@v0.6.0 (29 Wire Atoms / 31 Compose UI Atoms / 36 ComposedNodeKinds, 21 canonical snippet types with sticky support, deterministic EnsureComponentIDs, adaptive_layout, floating_cart with free-delivery threshold nudges, and string-only tracking)",
 			"properties": map[string]any{
 				"page_id": map[string]any{"type": "string"},
 				"title":   map[string]any{"type": "string"},
@@ -426,6 +460,7 @@ func openAPISchemas() map[string]any {
 						"properties": map[string]any{
 							"snippet_id":   map[string]any{"type": "string"},
 							"snippet_type": map[string]any{"type": "string", "enum": canonicalSnippetTypes},
+							"sticky":       map[string]any{"type": "boolean"},
 							"data":         map[string]any{"type": "object", "additionalProperties": true},
 						},
 					},
@@ -527,6 +562,54 @@ func openAPISchemas() map[string]any {
 				"contactless":     map[string]any{"type": "boolean"},
 				"spend_limit_usd": map[string]any{"type": "number", "example": 5000},
 			},
+		},
+		"AnalyticsEvent": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"event_id":           map[string]any{"type": "string"},
+				"event_name":         map[string]any{"type": "string", "example": "node_impression"},
+				"category":           map[string]any{"type": "string", "example": "impression"},
+				"page_id":            map[string]any{"type": "string", "example": "fresh-home"},
+				"snippet_id":         map[string]any{"type": "string"},
+				"component_id":       map[string]any{"type": "string", "example": "tile_avocados"},
+				"action_id":          map[string]any{"type": "string"},
+				"action_type":        map[string]any{"type": "string"},
+				"timestamp_epoch_ms": map[string]any{"type": "integer"},
+				"properties":         map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}},
+			},
+			"required": []string{"event_name"},
+		},
+		"AnalyticsBatchRequest": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"session_id":  map[string]any{"type": "string"},
+				"user_id":     map[string]any{"type": "string"},
+				"platform":    map[string]any{"type": "string", "example": "ios"},
+				"app_version": map[string]any{"type": "string", "example": "0.6.0"},
+				"events":      map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/AnalyticsEvent"}},
+			},
+			"required": []string{"events"},
+		},
+		"AnalyticsIngestResponse": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"accepted":                  map[string]any{"type": "integer"},
+				"dropped":                   map[string]any{"type": "integer"},
+				"server_timestamp_epoch_ms": map[string]any{"type": "integer"},
+			},
+			"required": []string{"accepted", "dropped", "server_timestamp_epoch_ms"},
+		},
+		"AnalyticsSummary": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"total_events":    map[string]any{"type": "integer"},
+				"by_event_name":   map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "integer"}},
+				"by_category":     map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "integer"}},
+				"by_page_id":      map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "integer"}},
+				"by_component_id": map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "integer"}},
+				"recent_events":   map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/AnalyticsEvent"}},
+			},
+			"required": []string{"total_events", "by_event_name", "by_category", "by_page_id", "by_component_id", "recent_events"},
 		},
 	}
 }

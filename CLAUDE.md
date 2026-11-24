@@ -1,6 +1,6 @@
 # CLAUDE.md — Claude Code Instructions for `abeta-dev/sdui-bff`
 
-This repository is **Abeta SDUI Domain BFF (`github.com/abeta-dev/sdui-bff`, `v0.3.0`)**, a standalone Go `1.26.0` Clean Architecture multi-vertical Server-Driven UI (SDUI) Backend-for-Frontend consuming `github.com/abeta-dev/kmp/bff@v0.5.0` (**28 Wire Atoms** / **30 UI Atoms** / **29 `ComposedNodeKind`s**) and `github.com/abeta-dev/go-libs@v0.4.0`.
+This repository is **Abeta SDUI Domain BFF (`github.com/abeta-dev/sdui-bff`, `v0.4.0`)**, a standalone Go `1.26.0` Clean Architecture multi-vertical Server-Driven UI (SDUI) Backend-for-Frontend consuming `github.com/abeta-dev/kmp/bff@v0.6.0` (**29 Wire Atoms** / **31 Compose UI Atoms** / **36 `ComposedNodeKind`s**, Express Quick-Commerce `molecules`, `EnsureComponentIDs`, and shared `analytics` DTOs) and `github.com/abeta-dev/go-libs@v0.4.0`.
 
 Read [AGENTS.md](AGENTS.md) for the complete architectural contract. Below is the operational quick reference for every session.
 
@@ -19,11 +19,12 @@ Before editing code, load:
 
 - **Clean Architecture Boundaries**:
   - `cmd/sdui-bff`: Entrypoint, env configuration (`PORT=8085`, `LAYOUT_ENGINE_URL`, `JWT_SECRET`, `RATE_LIMIT_RPS`), `VerticalModule` registration, HTTP/2 + `h2c` server, graceful shutdown.
-  - `internal/domain`: Pure entities (`AppDescriptor`, `ScreenSummary`, `ScreenRequest`, `ActionExecuteRequest`, `ActionResult`, `ExpressOrderRequest`, `BookingRequest`, `SwipeRequest`, `SparkMatch`, `RFQRequest`, `RFQRecord`, `TransferRequest`, `CardControlRequest`, `TransferRecord`) and ports (`VerticalModule`, `LayoutEngineClient`, `ScreenComposer`, `ActionExecutor`). Zero HTTP/Gin/infra/vertical imports (guarded by `internal/domain/arch_test.go`).
-  - `internal/usecase`: `ScreenComposer` (Layout Engine hydration + OCP `VerticalModule` dispatch) and `ActionExecutor`.
-  - `internal/handler`: Gin router, vertical endpoints, Brotli/gzip compression, SHA-256 `ETag`, OpenAPI 3.1 (`/openapi.json`) & Scalar UI (`/docs`), `/healthz`, `/readyz`, `go-libs/ginmw` envelopes.
-  - `internal/infra/layoutclient`: Optional HTTP client for `Abeta-dev/layout-engine` (5s timeout, 4 MiB response cap, targeting header forwarding, clean standalone no-op when `LAYOUT_ENGINE_URL` is unset).
-  - `internal/verticals/*`: 7 OCP `VerticalModule` implementations (**Abeta Fresh**, **Abeta Bites**, **Abeta Pulse**, **Abeta Mart**, **Abeta Spark**, **Abeta Trade**, **Abeta Pay**) with mutex-protected stateful stores.
+  - `internal/domain`: Pure entities (`AppDescriptor`, `ScreenSummary`, `ScreenRequest`, `ActionExecuteRequest`, `ActionResult`, `ExpressOrderRequest`, `BookingRequest`, `SwipeRequest`, `SparkMatch`, `RFQRequest`, `RFQRecord`, `TransferRequest`, `CardControlRequest`, `TransferRecord`) and ports (`VerticalModule`, `LayoutEngineClient`, `ScreenComposer`, `ActionExecutor`, `AnalyticsStore`, `AnalyticsService`). Zero HTTP/Gin/infra/vertical imports (guarded by `internal/domain/arch_test.go`).
+  - `internal/usecase`: `ScreenComposer` (Layout Engine hydration + OCP `VerticalModule` dispatch + deterministic `snippets.EnsureComponentIDs`), `ActionExecutor`, and `AnalyticsService` (`IngestBatch`, `Summary`).
+  - `internal/handler`: Gin router, vertical endpoints, analytics endpoints (`POST /api/v1/analytics/events`, `GET /api/v1/analytics/summary`), Brotli/gzip compression, SHA-256 `ETag`, OpenAPI 3.1 (`/openapi.json`) & Scalar UI (`/docs`), `/healthz`, `/readyz`, `go-libs/ginmw` envelopes.
+  - `internal/infra/{layoutclient,analyticsstore}`: Optional HTTP client for `Abeta-dev/layout-engine` (5s timeout, 4 MiB response cap, targeting header forwarding, clean standalone no-op when `LAYOUT_ENGINE_URL` is unset) and concurrency-safe `InMemoryStore` (counters by `event_name`/`category`/`page_id`/`component_id` + bounded 100-event ring buffer).
+  - `internal/verticals/*`: 7 OCP `VerticalModule` implementations (**Abeta Fresh** with sticky `search_bar`, hero `MediaPagerAtom`, and Express `molecules`, **Abeta Bites**, **Abeta Pulse**, **Abeta Mart**, **Abeta Spark**, **Abeta Trade**, **Abeta Pay**) with mutex-protected stateful stores.
+- **CI Quality Gate**: `.github/workflows/ci.yml` aggregates all upstream jobs behind the unified **`CI Quality Gate`** (`ci-quality-gate`) job.
 - **KMP String-Only Tracking Properties**: All `TrackingContract.properties` maps MUST use string values only (`map[string]string`) so Kotlin `kotlinx.serialization` decodes cleanly across all KMP targets.
 - **Brand & Path Hygiene**: Strictly use Abeta showcase brands (`Abeta Fresh`, `Abeta Bites`, `Abeta Pulse`, `Abeta Mart`, `Abeta Spark`, `Abeta Trade`, `Abeta Pay`) and `abeta-dev` / `Abeta-dev`. Never commit third-party brand names or local filesystem paths.
 

@@ -120,10 +120,15 @@ func (m *Module) RenderScreen(ctx context.Context, req domain.ScreenRequest) (sn
 	headerSnippet := buildHeaderSnippet(city, orderCount)
 	marqueeSnippet := buildMarqueeStripSnippet()
 	searchSnippet := buildSearchSnippet(query)
+	heroMediaPagerSnippet := buildHeroMediaPagerSnippet(city)
 	chipsSnippet := buildCategoryChipsSnippet(filter)
+	categoryGridSnippet := buildExpressCategoryGridSnippet()
 	nudgeSnippet := buildFlashNudgeSnippet(city)
 	bannerSnippet := buildPromoBannerSnippet(city, filter, query, len(filtered), orderCount)
+	bestsellersSnippet := buildExpressBestsellersSnippet()
+	upsellRailSnippet := buildImpulseUpsellRailSnippet()
 	loyaltySnippet := buildLoyaltyComposedSnippet(orderCount)
+	deliveryInstructionsSnippet := buildDeliveryInstructionsSnippet()
 	deliverySummarySnippet := buildDeliverySummaryComposedBlock(city)
 
 	var catalogSnippet snippets.SnippetEnvelope
@@ -148,7 +153,7 @@ func (m *Module) RenderScreen(ctx context.Context, req domain.ScreenRequest) (sn
 	etaBadge := atoms.NewTag("8 mins", theming.ColorSuccessContainer)
 	etaBadge.Motion = &atoms.MotionSpec{LoopEffect: atoms.MotionLoopFloat}
 
-	return snippets.NewPage(pageID, "Abeta Fresh · 8-Min Delivery").
+	page := snippets.NewPage(pageID, "Abeta Fresh · 8-Min Delivery").
 		WithToolbar(snippets.ToolbarSpec{
 			Title:    &toolbarTitle,
 			Subtitle: &toolbarSub,
@@ -172,7 +177,22 @@ func (m *Module) RenderScreen(ctx context.Context, req domain.ScreenRequest) (sn
 				"result_count": strconv.Itoa(len(filtered)),
 			},
 		})).
-		AddSnippets(headerSnippet, marqueeSnippet, searchSnippet, chipsSnippet, nudgeSnippet, bannerSnippet, catalogSnippet, loyaltySnippet, deliverySummarySnippet).
+		AddSnippets(
+			headerSnippet,
+			marqueeSnippet,
+			searchSnippet,
+			heroMediaPagerSnippet,
+			chipsSnippet,
+			categoryGridSnippet,
+			nudgeSnippet,
+			bannerSnippet,
+			bestsellersSnippet,
+			catalogSnippet,
+			upsellRailSnippet,
+			loyaltySnippet,
+			deliveryInstructionsSnippet,
+			deliverySummarySnippet,
+		).
 		WithFloatingCart(snippets.FloatingCartSpec{
 			Label:                      "Express Cart",
 			EtaBadge:                   &etaBadge,
@@ -194,7 +214,10 @@ func (m *Module) RenderScreen(ctx context.Context, req domain.ScreenRequest) (sn
 			"order_count":  strconv.Itoa(orderCount),
 			"result_count": strconv.Itoa(len(filtered)),
 		}).
-		Build(), nil
+		Build()
+
+	snippets.EnsureComponentIDs(&page)
+	return page, nil
 }
 
 // PlaceExpressOrder records an express grocery order and emits celebration + toast follow-up actions.
